@@ -33,6 +33,15 @@ Variables are read from `.env` file (convenient for local development) and from 
 
 ### Example Queries
 
+> If `AUTH_TOKEN` is set, add `-H "Authorization: Bearer <token>"` to all requests:
+>
+> ```bash
+> curl -X POST http://localhost:8080/query \
+>   -H "Authorization: Bearer your-secret-token" \
+>   -H "Content-Type: application/json" \
+>   -d '{"query":"{ keyValues { bucket } }"}'
+> ```
+
 **List KV stores:**
 
 ```graphql
