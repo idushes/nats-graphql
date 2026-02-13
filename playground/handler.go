@@ -21,6 +21,44 @@ const exampleQuery = `# List all Key-Value stores
 }
 
 # -----------------------------------------------
+# List keys in a KV bucket
+#
+# {
+#   kvKeys(bucket: "my-bucket")
+# }
+
+# -----------------------------------------------
+# Get value for a specific key
+#
+# {
+#   kvGet(bucket: "my-bucket", key: "my-key") {
+#     key
+#     value
+#     revision
+#     created
+#   }
+# }
+
+# -----------------------------------------------
+# Put a value (mutation)
+#
+# mutation {
+#   kvPut(bucket: "my-bucket", key: "my-key", value: "hello") {
+#     key
+#     value
+#     revision
+#     created
+#   }
+# }
+
+# -----------------------------------------------
+# Delete a key (mutation)
+#
+# mutation {
+#   kvDelete(bucket: "my-bucket", key: "my-key")
+# }
+
+# -----------------------------------------------
 # List all JetStream streams
 # Returns stream config and runtime statistics
 #

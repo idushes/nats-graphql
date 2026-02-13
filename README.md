@@ -1,6 +1,6 @@
 # nats-graphql
 
-GraphQL server for NATS JetStream administration. Provides a read-only API to inspect Key-Value stores and streams.
+GraphQL server for NATS JetStream administration. Provides an API to inspect and manage Key-Value stores and streams.
 
 ## Quick Start
 
@@ -49,6 +49,48 @@ Variables are read from `.env` file (convenient for local development) and from 
 }
 ```
 
+**List keys in a KV bucket:**
+
+```graphql
+{
+  kvKeys(bucket: "my-bucket")
+}
+```
+
+**Get value for a specific key:**
+
+```graphql
+{
+  kvGet(bucket: "my-bucket", key: "my-key") {
+    key
+    value
+    revision
+    created
+  }
+}
+```
+
+**Put a value (mutation):**
+
+```graphql
+mutation {
+  kvPut(bucket: "my-bucket", key: "my-key", value: "hello") {
+    key
+    value
+    revision
+    created
+  }
+}
+```
+
+**Delete a key (mutation):**
+
+```graphql
+mutation {
+  kvDelete(bucket: "my-bucket", key: "my-key")
+}
+```
+
 **List streams:**
 
 ```graphql
@@ -76,7 +118,7 @@ Variables are read from `.env` file (convenient for local development) and from 
 curl http://localhost:8080/query \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer your-secret-token' \
-  -d '{"query":"{ keyValues { bucket values bytes } }"}'
+  -d '{"query":"{ kvKeys(bucket: \"my-bucket\") }"}'
 ```
 
 ## Docker
