@@ -87,3 +87,6 @@ type StreamMessage struct {
 	// Timestamp when the message was stored, in RFC3339 format
 	Published string `json:"published"`
 }
+
+type Subscription struct {
+}

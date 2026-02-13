@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -135,6 +136,7 @@ func testPlayground() {
 	assert("contains kvDelete example", strings.Contains(body, "kvDelete"), "kvDelete example not found")
 	assert("contains publish example", strings.Contains(body, "publish"), "publish example not found")
 	assert("contains streamMessages example", strings.Contains(body, "streamMessages"), "streamMessages example not found")
+	assert("contains streamSubscribe example", strings.Contains(body, "streamSubscribe"), "streamSubscribe example not found")
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1211,6 +1213,142 @@ func teardown() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// SUBSCRIPTION TESTS
+// ══════════════════════════════════════════════════════════════════
+
+func testStreamSubscribe() {
+	fmt.Println("\n── streamSubscribe ──")
+
+	// Determine WebSocket URL from baseURL
+	wsURL := strings.Replace(baseURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
+	wsURL += "/query"
+
+	// Helper: connect WebSocket with graphql-ws subprotocol
+	connectWS := func() (*websocket.Conn, error) {
+		dialer := websocket.Dialer{}
+		header := http.Header{}
+		header.Set("Sec-WebSocket-Protocol", "graphql-transport-ws")
+		conn, _, err := dialer.Dial(wsURL, header)
+		if err != nil {
+			return nil, err
+		}
+
+		// Send connection_init
+		init := map[string]any{"type": "connection_init"}
+		conn.WriteJSON(init)
+
+		// Wait for connection_ack
+		var ack map[string]any
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		conn.ReadJSON(&ack)
+		if ack["type"] != "connection_ack" {
+			conn.Close()
+			return nil, fmt.Errorf("expected connection_ack, got: %v", ack["type"])
+		}
+
+		return conn, nil
+	}
+
+	// ── Test 1: basic subscription ──
+	conn, err := connectWS()
+	assert("websocket connect", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Subscribe to the test stream
+	sub := map[string]any{
+		"id":   "1",
+		"type": "subscribe",
+		"payload": map[string]any{
+			"query": fmt.Sprintf(`subscription { streamSubscribe(stream: "%s") { sequence subject data published } }`, testStream),
+		},
+	}
+	conn.WriteJSON(sub)
+	assert("sent subscribe", true, "")
+
+	// Give the consumer time to be created
+	time.Sleep(200 * time.Millisecond)
+
+	// Publish a message
+	pubData := "sub-test-msg"
+	_, err = query(fmt.Sprintf(`mutation { publish(subject: "%s.sub_test", data: "%s") { sequence } }`, testStream, pubData))
+	assert("publish for subscription", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+
+	// Read the subscription message
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var msg map[string]any
+	err = conn.ReadJSON(&msg)
+	assert("received subscription message", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+
+	assert("message type is 'next'", msg["type"] == "next", fmt.Sprintf("got: %v", msg["type"]))
+
+	if payload, ok := msg["payload"].(map[string]any); ok {
+		if data, ok := payload["data"].(map[string]any); ok {
+			if sm, ok := data["streamSubscribe"].(map[string]any); ok {
+				assert("has sequence", sm["sequence"] != nil, "missing sequence")
+				assert("subject matches", strings.Contains(fmt.Sprint(sm["subject"]), "sub_test"), fmt.Sprintf("got: %v", sm["subject"]))
+				assert("data matches", sm["data"] == pubData, fmt.Sprintf("got: %v", sm["data"]))
+				assert("has published", sm["published"] != nil, "missing published")
+			} else {
+				assert("parse streamSubscribe", false, "missing streamSubscribe in data")
+			}
+		} else {
+			assert("parse data", false, "missing data in payload")
+		}
+	} else {
+		assert("parse payload", false, "missing payload")
+	}
+
+	// ── Test 2: subject-filtered subscription ──
+	conn2, err := connectWS()
+	assert("ws connect for subject filter", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+	defer conn2.Close()
+
+	subFiltered := map[string]any{
+		"id":   "2",
+		"type": "subscribe",
+		"payload": map[string]any{
+			"query": fmt.Sprintf(`subscription { streamSubscribe(stream: "%s", subject: "%s.filtered") { sequence subject data } }`, testStream, testStream),
+		},
+	}
+	conn2.WriteJSON(subFiltered)
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Publish to a different subject (should NOT be received)
+	query(fmt.Sprintf(`mutation { publish(subject: "%s.other", data: "should-skip") { sequence } }`, testStream))
+	// Publish to the filtered subject (should be received)
+	query(fmt.Sprintf(`mutation { publish(subject: "%s.filtered", data: "should-receive") { sequence } }`, testStream))
+
+	conn2.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var msg2 map[string]any
+	err = conn2.ReadJSON(&msg2)
+	assert("received filtered message", err == nil, fmt.Sprint(err))
+	if err == nil {
+		if payload, ok := msg2["payload"].(map[string]any); ok {
+			if data, ok := payload["data"].(map[string]any); ok {
+				if sm, ok := data["streamSubscribe"].(map[string]any); ok {
+					assert("filtered data is correct", sm["data"] == "should-receive", fmt.Sprintf("got: %v", sm["data"]))
+					assert("filtered subject matches", strings.Contains(fmt.Sprint(sm["subject"]), "filtered"), fmt.Sprintf("got: %v", sm["subject"]))
+				}
+			}
+		}
+	}
+}
+
+// ══════════════════════════════════════════════════════════════════
 // MAIN
 // ══════════════════════════════════════════════════════════════════
 
@@ -1271,6 +1409,9 @@ func main() {
 	testStreamMessagesEdgeCases()
 	testStreamMessagesFilters()
 	testStreamMessagesFilterErrors()
+
+	// ── Subscriptions ──
+	testStreamSubscribe()
 
 	// Summary
 	total := passed + failed

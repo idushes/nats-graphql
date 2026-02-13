@@ -41,6 +41,7 @@ type Config struct {
 type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Subscription() SubscriptionResolver
 }
 
 type DirectiveRoot struct {
@@ -104,6 +105,10 @@ type ComplexityRoot struct {
 		Sequence  func(childComplexity int) int
 		Subject   func(childComplexity int) int
 	}
+
+	Subscription struct {
+		StreamSubscribe func(childComplexity int, stream string, subject *string) int
+	}
 }
 
 type MutationResolver interface {
@@ -117,6 +122,9 @@ type QueryResolver interface {
 	KvKeys(ctx context.Context, bucket string) ([]string, error)
 	KvGet(ctx context.Context, bucket string, key string) (*model.KVEntry, error)
 	StreamMessages(ctx context.Context, stream string, last int, startSeq *int, startTime *string, endTime *string, subject *string) ([]*model.StreamMessage, error)
+}
+type SubscriptionResolver interface {
+	StreamSubscribe(ctx context.Context, stream string, subject *string) (<-chan *model.StreamMessage, error)
 }
 
 type executableSchema struct {
@@ -397,6 +405,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.StreamMessage.Subject(childComplexity), true
 
+	case "Subscription.streamSubscribe":
+		if e.complexity.Subscription.StreamSubscribe == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_streamSubscribe_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.StreamSubscribe(childComplexity, args["stream"].(string), args["subject"].(*string)), true
+
 	}
 	return 0, false
 }
@@ -447,6 +467,23 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
 			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
 			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
+	case ast.Subscription:
+		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
+
+		var buf bytes.Buffer
+		return func(ctx context.Context) *graphql.Response {
+			buf.Reset()
+			data := next(ctx)
+
+			if data == nil {
+				return nil
+			}
 			data.MarshalGQL(&buf)
 
 			return &graphql.Response{
@@ -644,6 +681,22 @@ func (ec *executionContext) field_Query_streamMessages_args(ctx context.Context,
 		return nil, err
 	}
 	args["subject"] = arg5
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_streamSubscribe_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "subject", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["subject"] = arg1
 	return args, nil
 }
 
@@ -2026,6 +2079,57 @@ func (ec *executionContext) fieldContext_StreamMessage_published(_ context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_streamSubscribe(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_streamSubscribe,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Subscription().StreamSubscribe(ctx, fc.Args["stream"].(string), fc.Args["subject"].(*string))
+		},
+		nil,
+		ec.marshalNStreamMessage2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamMessage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_streamSubscribe(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sequence":
+				return ec.fieldContext_StreamMessage_sequence(ctx, field)
+			case "subject":
+				return ec.fieldContext_StreamMessage_subject(ctx, field)
+			case "data":
+				return ec.fieldContext_StreamMessage_data(ctx, field)
+			case "published":
+				return ec.fieldContext_StreamMessage_published(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StreamMessage", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_streamSubscribe_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -4019,6 +4123,26 @@ func (ec *executionContext) _StreamMessage(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var subscriptionImplementors = []string{"Subscription"}
+
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		graphql.AddErrorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "streamSubscribe":
+		return ec._Subscription_streamSubscribe(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
+}
+
 var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
@@ -4520,6 +4644,10 @@ func (ec *executionContext) marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodel
 		return graphql.Null
 	}
 	return ec._StreamInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNStreamMessage2natsᚑgraphqlᚋgraphᚋmodelᚐStreamMessage(ctx context.Context, sel ast.SelectionSet, v model.StreamMessage) graphql.Marshaler {
+	return ec._StreamMessage(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNStreamMessage2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamMessage) graphql.Marshaler {

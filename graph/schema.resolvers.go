@@ -311,20 +311,82 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 	return result, nil
 }
 
+// StreamSubscribe is the resolver for the streamSubscribe field.
+func (r *subscriptionResolver) StreamSubscribe(ctx context.Context, stream string, subject *string) (<-chan *model.StreamMessage, error) {
+	s, err := r.JS.Stream(ctx, stream)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build ordered consumer config — deliver only new messages
+	cfg := jetstream.OrderedConsumerConfig{
+		DeliverPolicy: jetstream.DeliverNewPolicy,
+	}
+	if subject != nil && *subject != "" {
+		cfg.FilterSubjects = []string{*subject}
+	}
+
+	cons, err := s.OrderedConsumer(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create consumer: %w", err)
+	}
+
+	// Start consuming
+	iter, err := cons.Messages()
+	if err != nil {
+		return nil, fmt.Errorf("failed to start consuming: %w", err)
+	}
+
+	ch := make(chan *model.StreamMessage, 1)
+
+	go func() {
+		defer close(ch)
+		defer iter.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			msg, err := iter.Next()
+			if err != nil {
+				return
+			}
+
+			meta, err := msg.Metadata()
+			if err != nil {
+				continue
+			}
+
+			sm := &model.StreamMessage{
+				Sequence:  int(meta.Sequence.Stream),
+				Subject:   msg.Subject(),
+				Data:      string(msg.Data()),
+				Published: meta.Timestamp.Format(time.RFC3339Nano),
+			}
+
+			select {
+			case ch <- sm:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-
-// parseRFC3339 parses a time string in RFC3339 or RFC3339Nano format.
-func parseRFC3339(s string) (time.Time, error) {
-	t, err := time.Parse(time.RFC3339Nano, s)
-	if err == nil {
-		return t, nil
-	}
-	return time.Parse(time.RFC3339, s)
-}
+type subscriptionResolver struct{ *Resolver }

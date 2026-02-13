@@ -156,3 +156,11 @@ type Mutation {
   "Publish a message to a NATS subject. Max payload size: 1MB. Returns the stream and sequence of the published message"
   publish(subject: String!, data: String!): PublishResult!
 }
+
+type Subscription {
+  """
+  Subscribe to new messages on a stream in real-time via WebSocket.
+  Optionally filter by subject pattern (e.g. "orders.>" or "orders.new").
+  """
+  streamSubscribe(stream: String!, subject: String): StreamMessage!
+}

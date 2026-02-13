@@ -4,8 +4,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/joho/godotenv"
 
 	"nats-graphql/graph"
@@ -32,10 +35,17 @@ func main() {
 
 	log.Printf("Connected to NATS at %s", nc.ConnectedUrl())
 
-	// GraphQL server
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{JS: js},
+	// GraphQL server with WebSocket support for subscriptions
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{
+		Resolvers: &graph.Resolver{NC: nc, JS: js},
 	}))
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+	})
+	srv.Use(extension.Introspection{})
 
 	http.Handle("/", playground.Handler("NATS GraphQL", "/query"))
 	http.Handle("/query", middleware.Auth(srv))

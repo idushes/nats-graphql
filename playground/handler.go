@@ -90,6 +90,18 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Subscribe to new messages in real-time (WebSocket)
+#
+# subscription {
+#   streamSubscribe(stream: "my-stream", subject: "orders.>") {
+#     sequence
+#     subject
+#     data
+#     published
+#   }
+# }
+
+# -----------------------------------------------
 # Publish a message to a subject (mutation)
 #
 # mutation {
