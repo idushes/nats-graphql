@@ -84,6 +84,34 @@ type KVEntry {
   created: String!
 }
 
+"""
+Single message from a NATS JetStream stream.
+"""
+type StreamMessage {
+  "Sequence number of the message in the stream"
+  sequence: Int!
+
+  "Subject the message was published to"
+  subject: String!
+
+  "Message payload as UTF-8 string"
+  data: String!
+
+  "Timestamp when the message was stored, in RFC3339 format"
+  published: String!
+}
+
+"""
+Result of publishing a message to NATS.
+"""
+type PublishResult {
+  "Stream that accepted the message"
+  stream: String!
+
+  "Sequence number assigned to the message in the stream"
+  sequence: Int!
+}
+
 type Query {
   "List all Key-Value stores in NATS JetStream with their configuration and state"
   keyValues: [KeyValue!]!
@@ -96,6 +124,9 @@ type Query {
 
   "Get value for a specific key from a KV bucket. Returns null if key does not exist"
   kvGet(bucket: String!, key: String!): KVEntry
+
+  "Read last N messages from a stream. Max 100 messages per request. Returns messages in chronological order (oldest first)"
+  streamMessages(stream: String!, last: Int! = 10): [StreamMessage!]!
 }
 
 type Mutation {
@@ -104,4 +135,7 @@ type Mutation {
 
   "Delete a key from a KV bucket. Returns true if successful"
   kvDelete(bucket: String!, key: String!): Boolean!
+
+  "Publish a message to a NATS subject. Max payload size: 1MB. Returns the stream and sequence of the published message"
+  publish(subject: String!, data: String!): PublishResult!
 }

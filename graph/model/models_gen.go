@@ -36,6 +36,14 @@ type KeyValue struct {
 type Mutation struct {
 }
 
+// Result of publishing a message to NATS.
+type PublishResult struct {
+	// Stream that accepted the message
+	Stream string `json:"stream"`
+	// Sequence number assigned to the message in the stream
+	Sequence int `json:"sequence"`
+}
+
 type Query struct {
 }
 
@@ -66,4 +74,16 @@ type StreamInfo struct {
 	Consumers int `json:"consumers"`
 	// Stream creation timestamp in RFC3339 format
 	Created string `json:"created"`
+}
+
+// Single message from a NATS JetStream stream.
+type StreamMessage struct {
+	// Sequence number of the message in the stream
+	Sequence int `json:"sequence"`
+	// Subject the message was published to
+	Subject string `json:"subject"`
+	// Message payload as UTF-8 string
+	Data string `json:"data"`
+	// Timestamp when the message was stored, in RFC3339 format
+	Published string `json:"published"`
 }

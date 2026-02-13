@@ -59,6 +59,28 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Read last N messages from a stream (max 100)
+#
+# {
+#   streamMessages(stream: "my-stream", last: 5) {
+#     sequence
+#     subject
+#     data
+#     published
+#   }
+# }
+
+# -----------------------------------------------
+# Publish a message to a subject (mutation)
+#
+# mutation {
+#   publish(subject: "orders.new", data: "{\"id\": 1}") {
+#     stream
+#     sequence
+#   }
+# }
+
+# -----------------------------------------------
 # List all JetStream streams
 # Returns stream config and runtime statistics
 #

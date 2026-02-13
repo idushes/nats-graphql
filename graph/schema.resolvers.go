@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"nats-graphql/graph/model"
 	"time"
 
@@ -52,6 +53,24 @@ func (r *mutationResolver) KvDelete(ctx context.Context, bucket string, key stri
 	}
 
 	return true, nil
+}
+
+// Publish is the resolver for the publish field.
+func (r *mutationResolver) Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error) {
+	const maxPayload = 1 << 20 // 1 MB
+	if len(data) > maxPayload {
+		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", len(data), maxPayload)
+	}
+
+	ack, err := r.JS.Publish(ctx, subject, []byte(data))
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.PublishResult{
+		Stream:   ack.Stream,
+		Sequence: int(ack.Sequence),
+	}, nil
 }
 
 // KeyValues is the resolver for the keyValues field.
@@ -166,6 +185,58 @@ func (r *queryResolver) KvGet(ctx context.Context, bucket string, key string) (*
 		Revision: int(entry.Revision()),
 		Created:  entry.Created().Format(time.RFC3339),
 	}, nil
+}
+
+// StreamMessages is the resolver for the streamMessages field.
+func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last int) ([]*model.StreamMessage, error) {
+	const maxMessages = 100
+	if last <= 0 {
+		return nil, fmt.Errorf("last must be > 0")
+	}
+	if last > maxMessages {
+		return nil, fmt.Errorf("last exceeds maximum of %d messages", maxMessages)
+	}
+
+	s, err := r.JS.Stream(ctx, stream)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := s.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.State.Msgs == 0 {
+		return []*model.StreamMessage{}, nil
+	}
+
+	// Calculate the starting sequence
+	lastSeq := info.State.LastSeq
+	firstSeq := info.State.FirstSeq
+
+	startSeq := lastSeq - uint64(last) + 1
+	if startSeq < firstSeq || startSeq > lastSeq {
+		startSeq = firstSeq
+	}
+
+	var result []*model.StreamMessage
+	for seq := startSeq; seq <= lastSeq; seq++ {
+		msg, err := s.GetMsg(ctx, seq)
+		if err != nil {
+			// Skip deleted/purged messages
+			continue
+		}
+
+		result = append(result, &model.StreamMessage{
+			Sequence:  int(msg.Sequence),
+			Subject:   msg.Subject,
+			Data:      string(msg.Data),
+			Published: msg.Time.Format(time.RFC3339),
+		})
+	}
+
+	return result, nil
 }
 
 // Mutation returns MutationResolver implementation.

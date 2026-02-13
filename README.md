@@ -112,6 +112,37 @@ mutation {
 }
 ```
 
+**Read last N messages from a stream:**
+
+```graphql
+{
+  streamMessages(stream: "my-stream", last: 5) {
+    sequence
+    subject
+    data
+    published
+  }
+}
+```
+
+**Publish a message (mutation):**
+
+```graphql
+mutation {
+  publish(subject: "orders.new", data: "{\"id\": 1}") {
+    stream
+    sequence
+  }
+}
+```
+
+### Safety Limits
+
+| Limit                 | Value            | Description                                         |
+| --------------------- | ---------------- | --------------------------------------------------- |
+| `streamMessages` max  | **100 messages** | Hard cap per request, returns error if `last > 100` |
+| `publish` max payload | **1 MB**         | Returns error if payload exceeds 1MB                |
+
 **curl with token:**
 
 ```bash
