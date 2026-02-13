@@ -55,13 +55,14 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 
-	http.Handle("/", middleware.Logger(playground.Handler("NATS GraphQL", "/query")))
-	http.Handle("/query", middleware.Logger(middleware.CORS(middleware.Auth(srv))))
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.Handle("/", playground.Handler("NATS GraphQL", "/query"))
+	mux.Handle("/query", middleware.Auth(srv))
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	http.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if !nc.IsConnected() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Write([]byte("NATS disconnected"))
@@ -71,6 +72,9 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	// Global middleware: CORS → Logger → routes
+	handler := middleware.CORS(middleware.Logger(mux))
+
 	log.Printf("GraphQL playground: http://localhost:%s/", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
