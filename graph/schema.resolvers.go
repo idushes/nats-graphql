@@ -7,9 +7,52 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"nats-graphql/graph/model"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
+
+// KvPut is the resolver for the kvPut field.
+func (r *mutationResolver) KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	rev, err := kv.Put(ctx, key, []byte(value))
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the entry back to get the full metadata
+	entry, err := kv.GetRevision(ctx, key, rev)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.KVEntry{
+		Key:      entry.Key(),
+		Value:    string(entry.Value()),
+		Revision: int(entry.Revision()),
+		Created:  entry.Created().Format(time.RFC3339),
+	}, nil
+}
+
+// KvDelete is the resolver for the kvDelete field.
+func (r *mutationResolver) KvDelete(ctx context.Context, bucket string, key string) (bool, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return false, err
+	}
+
+	if err := kv.Delete(ctx, key); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
 
 // KeyValues is the resolver for the keyValues field.
 func (r *queryResolver) KeyValues(ctx context.Context) ([]*model.KeyValue, error) {
@@ -82,7 +125,54 @@ func (r *queryResolver) Streams(ctx context.Context) ([]*model.StreamInfo, error
 	return result, nil
 }
 
+// KvKeys is the resolver for the kvKeys field.
+func (r *queryResolver) KvKeys(ctx context.Context, bucket string) ([]string, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	lister, err := kv.ListKeys(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var keys []string
+	for key := range lister.Keys() {
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+// KvGet is the resolver for the kvGet field.
+func (r *queryResolver) KvGet(ctx context.Context, bucket string, key string) (*model.KVEntry, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	entry, err := kv.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &model.KVEntry{
+		Key:      entry.Key(),
+		Value:    string(entry.Value()),
+		Revision: int(entry.Revision()),
+		Created:  entry.Created().Format(time.RFC3339),
+	}, nil
+}
+
+// Mutation returns MutationResolver implementation.
+func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }

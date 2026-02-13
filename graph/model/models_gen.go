@@ -2,6 +2,18 @@
 
 package model
 
+// Single key-value entry from a KV bucket.
+type KVEntry struct {
+	// Key name
+	Key string `json:"key"`
+	// Value stored under this key (as UTF-8 string)
+	Value string `json:"value"`
+	// Revision number (monotonically increasing version)
+	Revision int `json:"revision"`
+	// Timestamp when this revision was created, in RFC3339 format
+	Created string `json:"created"`
+}
+
 // NATS JetStream Key-Value store information.
 // Represents metadata about a KV bucket including its configuration and current state.
 type KeyValue struct {
@@ -19,6 +31,9 @@ type KeyValue struct {
 	Values int `json:"values"`
 	// Whether the KV store data is compressed
 	IsCompressed bool `json:"isCompressed"`
+}
+
+type Mutation struct {
 }
 
 type Query struct {

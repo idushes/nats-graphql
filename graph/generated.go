@@ -39,6 +39,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Mutation() MutationResolver
 	Query() QueryResolver
 }
 
@@ -46,6 +47,13 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	KVEntry struct {
+		Created  func(childComplexity int) int
+		Key      func(childComplexity int) int
+		Revision func(childComplexity int) int
+		Value    func(childComplexity int) int
+	}
+
 	KeyValue struct {
 		Bucket       func(childComplexity int) int
 		Bytes        func(childComplexity int) int
@@ -56,8 +64,15 @@ type ComplexityRoot struct {
 		Values       func(childComplexity int) int
 	}
 
+	Mutation struct {
+		KvDelete func(childComplexity int, bucket string, key string) int
+		KvPut    func(childComplexity int, bucket string, key string, value string) int
+	}
+
 	Query struct {
 		KeyValues func(childComplexity int) int
+		KvGet     func(childComplexity int, bucket string, key string) int
+		KvKeys    func(childComplexity int, bucket string) int
 		Streams   func(childComplexity int) int
 	}
 
@@ -77,9 +92,15 @@ type ComplexityRoot struct {
 	}
 }
 
+type MutationResolver interface {
+	KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error)
+	KvDelete(ctx context.Context, bucket string, key string) (bool, error)
+}
 type QueryResolver interface {
 	KeyValues(ctx context.Context) ([]*model.KeyValue, error)
 	Streams(ctx context.Context) ([]*model.StreamInfo, error)
+	KvKeys(ctx context.Context, bucket string) ([]string, error)
+	KvGet(ctx context.Context, bucket string, key string) (*model.KVEntry, error)
 }
 
 type executableSchema struct {
@@ -100,6 +121,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "KVEntry.created":
+		if e.complexity.KVEntry.Created == nil {
+			break
+		}
+
+		return e.complexity.KVEntry.Created(childComplexity), true
+	case "KVEntry.key":
+		if e.complexity.KVEntry.Key == nil {
+			break
+		}
+
+		return e.complexity.KVEntry.Key(childComplexity), true
+	case "KVEntry.revision":
+		if e.complexity.KVEntry.Revision == nil {
+			break
+		}
+
+		return e.complexity.KVEntry.Revision(childComplexity), true
+	case "KVEntry.value":
+		if e.complexity.KVEntry.Value == nil {
+			break
+		}
+
+		return e.complexity.KVEntry.Value(childComplexity), true
 
 	case "KeyValue.bucket":
 		if e.complexity.KeyValue.Bucket == nil {
@@ -144,12 +190,57 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyValue.Values(childComplexity), true
 
+	case "Mutation.kvDelete":
+		if e.complexity.Mutation.KvDelete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_kvDelete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.KvDelete(childComplexity, args["bucket"].(string), args["key"].(string)), true
+	case "Mutation.kvPut":
+		if e.complexity.Mutation.KvPut == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_kvPut_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.KvPut(childComplexity, args["bucket"].(string), args["key"].(string), args["value"].(string)), true
+
 	case "Query.keyValues":
 		if e.complexity.Query.KeyValues == nil {
 			break
 		}
 
 		return e.complexity.Query.KeyValues(childComplexity), true
+	case "Query.kvGet":
+		if e.complexity.Query.KvGet == nil {
+			break
+		}
+
+		args, err := ec.field_Query_kvGet_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.KvGet(childComplexity, args["bucket"].(string), args["key"].(string)), true
+	case "Query.kvKeys":
+		if e.complexity.Query.KvKeys == nil {
+			break
+		}
+
+		args, err := ec.field_Query_kvKeys_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.KvKeys(childComplexity, args["bucket"].(string)), true
 	case "Query.streams":
 		if e.complexity.Query.Streams == nil {
 			break
@@ -271,6 +362,21 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 
 			return &response
 		}
+	case ast.Mutation:
+		return func(ctx context.Context) *graphql.Response {
+			if !first {
+				return nil
+			}
+			first = false
+			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
+			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
+			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
 
 	default:
 		return graphql.OneShot(graphql.ErrorResponse(ctx, "unsupported GraphQL operation"))
@@ -338,6 +444,43 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_kvDelete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "key", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_kvPut_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "key", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "value", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["value"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -346,6 +489,33 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_kvGet_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "key", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_kvKeys_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
 	return args, nil
 }
 
@@ -400,6 +570,122 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _KVEntry_key(ctx context.Context, field graphql.CollectedField, obj *model.KVEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KVEntry_key,
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KVEntry_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KVEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KVEntry_value(ctx context.Context, field graphql.CollectedField, obj *model.KVEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KVEntry_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KVEntry_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KVEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KVEntry_revision(ctx context.Context, field graphql.CollectedField, obj *model.KVEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KVEntry_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KVEntry_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KVEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _KVEntry_created(ctx context.Context, field graphql.CollectedField, obj *model.KVEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_KVEntry_created,
+		func(ctx context.Context) (any, error) {
+			return obj.Created, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_KVEntry_created(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "KVEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _KeyValue_bucket(ctx context.Context, field graphql.CollectedField, obj *model.KeyValue) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -604,6 +890,98 @@ func (ec *executionContext) fieldContext_KeyValue_isCompressed(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_kvPut(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_kvPut,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().KvPut(ctx, fc.Args["bucket"].(string), fc.Args["key"].(string), fc.Args["value"].(string))
+		},
+		nil,
+		ec.marshalNKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKVEntry,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_kvPut(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_KVEntry_key(ctx, field)
+			case "value":
+				return ec.fieldContext_KVEntry_value(ctx, field)
+			case "revision":
+				return ec.fieldContext_KVEntry_revision(ctx, field)
+			case "created":
+				return ec.fieldContext_KVEntry_created(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KVEntry", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_kvPut_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_kvDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_kvDelete,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().KvDelete(ctx, fc.Args["bucket"].(string), fc.Args["key"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_kvDelete(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_kvDelete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_keyValues(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -700,6 +1078,98 @@ func (ec *executionContext) fieldContext_Query_streams(_ context.Context, field 
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_kvKeys(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_kvKeys,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().KvKeys(ctx, fc.Args["bucket"].(string))
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_kvKeys(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_kvKeys_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_kvGet(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_kvGet,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().KvGet(ctx, fc.Args["bucket"].(string), fc.Args["key"].(string))
+		},
+		nil,
+		ec.marshalOKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKVEntry,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_kvGet(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_KVEntry_key(ctx, field)
+			case "value":
+				return ec.fieldContext_KVEntry_value(ctx, field)
+			case "revision":
+				return ec.fieldContext_KVEntry_revision(ctx, field)
+			case "created":
+				return ec.fieldContext_KVEntry_created(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KVEntry", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_kvGet_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -2614,6 +3084,60 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** object.gotpl ****************************
 
+var kVEntryImplementors = []string{"KVEntry"}
+
+func (ec *executionContext) _KVEntry(ctx context.Context, sel ast.SelectionSet, obj *model.KVEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, kVEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("KVEntry")
+		case "key":
+			out.Values[i] = ec._KVEntry_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._KVEntry_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._KVEntry_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "created":
+			out.Values[i] = ec._KVEntry_created(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var keyValueImplementors = []string{"KeyValue"}
 
 func (ec *executionContext) _KeyValue(ctx context.Context, sel ast.SelectionSet, obj *model.KeyValue) graphql.Marshaler {
@@ -2657,6 +3181,62 @@ func (ec *executionContext) _KeyValue(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "isCompressed":
 			out.Values[i] = ec._KeyValue_isCompressed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var mutationImplementors = []string{"Mutation"}
+
+func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mutationImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Mutation",
+	})
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		innerCtx := graphql.WithRootFieldContext(ctx, &graphql.RootFieldContext{
+			Object: field.Name,
+			Field:  field,
+		})
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mutation")
+		case "kvPut":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_kvPut(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kvDelete":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_kvDelete(ctx, field)
+			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -2737,6 +3317,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "kvKeys":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_kvKeys(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "kvGet":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_kvGet(ctx, field)
 				return res
 			}
 
@@ -3238,6 +3859,20 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) marshalNKVEntry2natsᚑgraphqlᚋgraphᚋmodelᚐKVEntry(ctx context.Context, sel ast.SelectionSet, v model.KVEntry) graphql.Marshaler {
+	return ec._KVEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKVEntry(ctx context.Context, sel ast.SelectionSet, v *model.KVEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._KVEntry(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNKeyValue2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKeyValueᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.KeyValue) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -3673,6 +4308,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKVEntry(ctx context.Context, sel ast.SelectionSet, v *model.KVEntry) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._KVEntry(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

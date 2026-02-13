@@ -67,10 +67,41 @@ type StreamInfo {
   created: String!
 }
 
+"""
+Single key-value entry from a KV bucket.
+"""
+type KVEntry {
+  "Key name"
+  key: String!
+
+  "Value stored under this key (as UTF-8 string)"
+  value: String!
+
+  "Revision number (monotonically increasing version)"
+  revision: Int!
+
+  "Timestamp when this revision was created, in RFC3339 format"
+  created: String!
+}
+
 type Query {
   "List all Key-Value stores in NATS JetStream with their configuration and state"
   keyValues: [KeyValue!]!
 
   "List all streams in NATS JetStream with their configuration and runtime state"
   streams: [StreamInfo!]!
+
+  "List all keys in a specific KV bucket"
+  kvKeys(bucket: String!): [String!]!
+
+  "Get value for a specific key from a KV bucket. Returns null if key does not exist"
+  kvGet(bucket: String!, key: String!): KVEntry
+}
+
+type Mutation {
+  "Put a value into a KV bucket. Creates or updates the key. Returns the stored entry"
+  kvPut(bucket: String!, key: String!, value: String!): KVEntry!
+
+  "Delete a key from a KV bucket. Returns true if successful"
+  kvDelete(bucket: String!, key: String!): Boolean!
 }
