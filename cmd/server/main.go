@@ -48,7 +48,7 @@ func main() {
 	srv.Use(extension.Introspection{})
 
 	http.Handle("/", playground.Handler("NATS GraphQL", "/query"))
-	http.Handle("/query", middleware.Auth(srv))
+	http.Handle("/query", middleware.CORS(middleware.Auth(srv)))
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if !nc.IsConnected() {
 			w.WriteHeader(http.StatusServiceUnavailable)
