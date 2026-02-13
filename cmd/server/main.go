@@ -35,6 +35,14 @@ func main() {
 
 	log.Printf("Connected to NATS at %s", nc.ConnectedUrl())
 
+	// Log configuration
+	authMode := "disabled"
+	if os.Getenv("AUTH_TOKEN") != "" {
+		authMode = "enabled (Bearer token)"
+	}
+	log.Printf("Auth: %s", authMode)
+	log.Printf("CORS: enabled (all origins)")
+
 	// GraphQL server with WebSocket support for subscriptions
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{
 		Resolvers: &graph.Resolver{NC: nc, JS: js},
@@ -47,9 +55,13 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 
-	http.Handle("/", playground.Handler("NATS GraphQL", "/query"))
-	http.Handle("/query", middleware.CORS(middleware.Auth(srv)))
+	http.Handle("/", middleware.Logger(playground.Handler("NATS GraphQL", "/query")))
+	http.Handle("/query", middleware.Logger(middleware.CORS(middleware.Auth(srv))))
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+	http.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if !nc.IsConnected() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Write([]byte("NATS disconnected"))

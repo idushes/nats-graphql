@@ -113,11 +113,17 @@ func unmarshal[T any](data json.RawMessage, field string) T {
 // ══════════════════════════════════════════════════════════════════
 
 func testHealthz() {
-	fmt.Println("\n── /healthz ──")
+	fmt.Println("\n── /healthz (liveness) ──")
 
 	resp, body := httpGet("/healthz")
 	assert("status 200", resp != nil && resp.StatusCode == 200, fmt.Sprintf("got: %v", resp))
 	assert("body is 'ok'", body == "ok", "got: "+body)
+
+	fmt.Println("\n── /readyz (readiness) ──")
+
+	resp2, body2 := httpGet("/readyz")
+	assert("status 200", resp2 != nil && resp2.StatusCode == 200, fmt.Sprintf("got: %v", resp2))
+	assert("body is 'ok'", body2 == "ok", "got: "+body2)
 }
 
 // ══════════════════════════════════════════════════════════════════

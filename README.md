@@ -25,11 +25,12 @@ Variables are read from `.env` file (convenient for local development) and from 
 
 ### Endpoints
 
-| Path       | Description                   | Auth Required                |
-| ---------- | ----------------------------- | ---------------------------- |
-| `/`        | GraphiQL playground           | No                           |
-| `/query`   | GraphQL endpoint              | Yes (if `AUTH_TOKEN` is set) |
-| `/healthz` | Health check (for K8s probes) | No                           |
+| Path       | Description                        | Auth Required                |
+| ---------- | ---------------------------------- | ---------------------------- |
+| `/`        | GraphiQL playground                | No                           |
+| `/query`   | GraphQL endpoint                   | Yes (if `AUTH_TOKEN` is set) |
+| `/healthz` | Liveness probe (K8s)               | No                           |
+| `/readyz`  | Readiness probe (K8s, checks NATS) | No                           |
 
 ### Example Queries
 
