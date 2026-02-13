@@ -164,6 +164,21 @@ mutation {
 }
 ```
 
+**Subscribe to new messages in real-time (WebSocket):**
+
+```graphql
+subscription {
+  streamSubscribe(stream: "my-stream", subject: "orders.>") {
+    sequence
+    subject
+    data
+    published
+  }
+}
+```
+
+Subscriptions use the `graphql-transport-ws` WebSocket protocol. The optional `subject` parameter filters messages by subject pattern.
+
 ### Safety Limits
 
 | Limit                 | Value            | Description                                         |
