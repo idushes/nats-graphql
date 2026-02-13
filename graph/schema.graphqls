@@ -1,0 +1,76 @@
+"""
+NATS JetStream Key-Value store information.
+Represents metadata about a KV bucket including its configuration and current state.
+"""
+type KeyValue {
+  "Name of the KV bucket"
+  bucket: String!
+
+  "Maximum number of history entries per key (how many past values are retained)"
+  history: Int!
+
+  "Time-to-live for keys in seconds. 0 means keys do not expire"
+  ttl: Int!
+
+  "Storage backend type (e.g. JetStream)"
+  storage: String!
+
+  "Total size of the KV store in bytes"
+  bytes: Int!
+
+  "Total number of key-value pairs in the store"
+  values: Int!
+
+  "Whether the KV store data is compressed"
+  isCompressed: Boolean!
+}
+
+"""
+NATS JetStream stream information.
+Represents metadata about a stream including its configuration and current runtime state.
+"""
+type StreamInfo {
+  "Unique name of the stream"
+  name: String!
+
+  "List of subject filters the stream is listening on (e.g. ['orders.>', 'payments.*'])"
+  subjects: [String!]!
+
+  "Message retention policy: Limits (by count/size/age), Interest (while consumers exist), or WorkQueue (ack-based removal)"
+  retention: String!
+
+  "Maximum number of consumers allowed on this stream. -1 means unlimited"
+  maxConsumers: Int!
+
+  "Maximum number of messages stored in the stream. -1 means unlimited"
+  maxMsgs: Int!
+
+  "Maximum total size of messages in the stream in bytes. -1 means unlimited"
+  maxBytes: Int!
+
+  "Storage type: File (persistent to disk) or Memory (in-memory only)"
+  storage: String!
+
+  "Number of stream replicas for high availability in a NATS cluster"
+  replicas: Int!
+
+  "Current number of messages stored in the stream"
+  messages: Int!
+
+  "Current total size of all messages in the stream in bytes"
+  bytes: Int!
+
+  "Current number of active consumers subscribed to this stream"
+  consumers: Int!
+
+  "Stream creation timestamp in RFC3339 format"
+  created: String!
+}
+
+type Query {
+  "List all Key-Value stores in NATS JetStream with their configuration and state"
+  keyValues: [KeyValue!]!
+
+  "List all streams in NATS JetStream with their configuration and runtime state"
+  streams: [StreamInfo!]!
+}
