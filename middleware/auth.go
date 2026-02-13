@@ -21,7 +21,9 @@ func Auth(next http.Handler) http.Handler {
 		value := strings.TrimPrefix(header, "Bearer ")
 
 		if value != token {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"errors":[{"message":"Unauthorized: invalid or missing Bearer token"}]}`))
 			return
 		}
 

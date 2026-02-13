@@ -160,11 +160,14 @@ var page = template.Must(template.New("playground").Parse(`<!DOCTYPE html>
 
     var fetcher = GraphiQL.createFetcher({ url: {{ .Endpoint }} });
     var defaultQuery = {{ .DefaultQuery }};
+    var defaultHeaders = {{ .DefaultHeaders }};
 
     ReactDOM.createRoot(document.getElementById('graphiql')).render(
       React.createElement(GraphiQL, {
         fetcher: fetcher,
         defaultQuery: defaultQuery,
+        defaultHeaders: defaultHeaders,
+        headerEditorEnabled: true,
       })
     );
   </script>
@@ -176,13 +179,15 @@ var page = template.Must(template.New("playground").Parse(`<!DOCTYPE html>
 func Handler(title, endpoint string) http.HandlerFunc {
 	endpointJSON, _ := json.Marshal(endpoint)
 	queryJSON, _ := json.Marshal(exampleQuery)
+	headersJSON, _ := json.Marshal(`{"Authorization": "Bearer <your-token>"}`)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		page.Execute(w, map[string]template.JS{
-			"Title":        template.JS(title),
-			"Endpoint":     template.JS(endpointJSON),
-			"DefaultQuery": template.JS(queryJSON),
+			"Title":          template.JS(title),
+			"Endpoint":       template.JS(endpointJSON),
+			"DefaultQuery":   template.JS(queryJSON),
+			"DefaultHeaders": template.JS(headersJSON),
 		})
 	}
 }
