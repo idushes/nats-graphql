@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"nats-graphql/graph"
+	"nats-graphql/middleware"
 	natsclient "nats-graphql/nats"
 	"nats-graphql/playground"
 )
@@ -37,7 +38,7 @@ func main() {
 	}))
 
 	http.Handle("/", playground.Handler("NATS GraphQL", "/query"))
-	http.Handle("/query", srv)
+	http.Handle("/query", middleware.Auth(srv))
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if !nc.IsConnected() {
 			w.WriteHeader(http.StatusServiceUnavailable)

@@ -1,0 +1,112 @@
+# nats-graphql
+
+GraphQL server for NATS JetStream administration. Provides a read-only API to inspect Key-Value stores and streams.
+
+## Quick Start
+
+```bash
+cp .env.example .env
+go run ./cmd/server/
+```
+
+Open `http://localhost:8080/` — GraphiQL playground with ready-to-use example queries.
+
+## Configuration
+
+| Variable     | Default                 | Description                                                                  |
+| ------------ | ----------------------- | ---------------------------------------------------------------------------- |
+| `NATS_URL`   | `nats://localhost:4222` | NATS server address                                                          |
+| `PORT`       | `8080`                  | HTTP server port                                                             |
+| `AUTH_TOKEN` | _(not set)_             | Auth token. If set, `/query` requires `Authorization: Bearer <token>` header |
+
+Variables are read from `.env` file (convenient for local development) and from environment (for Kubernetes).
+
+## API
+
+### Endpoints
+
+| Path       | Description                   | Auth Required                |
+| ---------- | ----------------------------- | ---------------------------- |
+| `/`        | GraphiQL playground           | No                           |
+| `/query`   | GraphQL endpoint              | Yes (if `AUTH_TOKEN` is set) |
+| `/healthz` | Health check (for K8s probes) | No                           |
+
+### Example Queries
+
+**List KV stores:**
+
+```graphql
+{
+  keyValues {
+    bucket
+    history
+    ttl
+    storage
+    bytes
+    values
+    isCompressed
+  }
+}
+```
+
+**List streams:**
+
+```graphql
+{
+  streams {
+    name
+    subjects
+    retention
+    storage
+    replicas
+    maxConsumers
+    maxMsgs
+    maxBytes
+    messages
+    bytes
+    consumers
+    created
+  }
+}
+```
+
+**curl with token:**
+
+```bash
+curl http://localhost:8080/query \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer your-secret-token' \
+  -d '{"query":"{ keyValues { bucket values bytes } }"}'
+```
+
+## Docker
+
+```bash
+docker build -t nats-graphql .
+docker run -p 8080:8080 -e NATS_URL=nats://host.docker.internal:4222 nats-graphql
+```
+
+## Project Structure
+
+```
+├── cmd/server/main.go        # Entrypoint
+├── graph/
+│   ├── schema.graphqls       # GraphQL schema
+│   ├── resolver.go           # Resolver with dependencies
+│   ├── schema.resolvers.go   # Query implementations
+│   ├── generated.go          # Generated runtime (gqlgen)
+│   └── model/                # Generated models
+├── nats/client.go            # NATS connection
+├── middleware/auth.go        # Token auth middleware
+├── playground/handler.go     # GraphiQL with examples
+├── Dockerfile                # Multi-stage build
+└── gqlgen.yml                # Code generation config
+```
+
+## Development
+
+Regenerate code after schema changes:
+
+```bash
+go run github.com/99designs/gqlgen generate
+```
