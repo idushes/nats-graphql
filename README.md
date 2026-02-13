@@ -125,6 +125,34 @@ mutation {
 }
 ```
 
+**Read messages with filters (all optional, can be combined):**
+
+```graphql
+{
+  streamMessages(
+    stream: "my-stream"
+    last: 10
+    startSeq: 100
+    startTime: "2026-01-01T00:00:00Z"
+    endTime: "2026-12-31T23:59:59Z"
+    subject: "orders.new"
+  ) {
+    sequence
+    subject
+    data
+    published
+  }
+}
+```
+
+| Filter      | Type     | Description                        |
+| ----------- | -------- | ---------------------------------- |
+| `last`      | `Int!`   | Max messages (default 10, cap 100) |
+| `startSeq`  | `Int`    | Start from sequence number         |
+| `startTime` | `String` | Start from timestamp (RFC3339)     |
+| `endTime`   | `String` | Stop at timestamp (RFC3339)        |
+| `subject`   | `String` | Filter by subject                  |
+
 **Publish a message (mutation):**
 
 ```graphql

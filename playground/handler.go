@@ -71,6 +71,25 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Read messages with filters (all optional)
+#
+# {
+#   streamMessages(
+#     stream: "my-stream"
+#     last: 10
+#     startSeq: 100
+#     startTime: "2026-01-01T00:00:00Z"
+#     endTime: "2026-12-31T23:59:59Z"
+#     subject: "orders.new"
+#   ) {
+#     sequence
+#     subject
+#     data
+#     published
+#   }
+# }
+
+# -----------------------------------------------
 # Publish a message to a subject (mutation)
 #
 # mutation {

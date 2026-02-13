@@ -188,13 +188,25 @@ func (r *queryResolver) KvGet(ctx context.Context, bucket string, key string) (*
 }
 
 // StreamMessages is the resolver for the streamMessages field.
-func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last int) ([]*model.StreamMessage, error) {
+func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last int, startSeq *int, startTime *string, endTime *string, subject *string) ([]*model.StreamMessage, error) {
 	const maxMessages = 100
 	if last <= 0 {
 		return nil, fmt.Errorf("last must be > 0")
 	}
 	if last > maxMessages {
 		return nil, fmt.Errorf("last exceeds maximum of %d messages", maxMessages)
+	}
+
+	// Parse time filters
+	var endTimeVal time.Time
+	hasEndTime := false
+	if endTime != nil {
+		t, err := parseRFC3339(*endTime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid endTime format (expected RFC3339): %w", err)
+		}
+		endTimeVal = t
+		hasEndTime = true
 	}
 
 	s, err := r.JS.Stream(ctx, stream)
@@ -211,29 +223,89 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 		return []*model.StreamMessage{}, nil
 	}
 
-	// Calculate the starting sequence
-	lastSeq := info.State.LastSeq
-	firstSeq := info.State.FirstSeq
+	// Build ordered consumer config
+	cfg := jetstream.OrderedConsumerConfig{}
 
-	startSeq := lastSeq - uint64(last) + 1
-	if startSeq < firstSeq || startSeq > lastSeq {
-		startSeq = firstSeq
+	// Subject filter
+	if subject != nil && *subject != "" {
+		cfg.FilterSubjects = []string{*subject}
+	}
+
+	// Determine delivery policy
+	if startTime != nil {
+		t, err := parseRFC3339(*startTime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid startTime format (expected RFC3339): %w", err)
+		}
+		cfg.DeliverPolicy = jetstream.DeliverByStartTimePolicy
+		cfg.OptStartTime = &t
+	} else if startSeq != nil {
+		if *startSeq < 1 {
+			return nil, fmt.Errorf("startSeq must be >= 1")
+		}
+		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+		cfg.OptStartSeq = uint64(*startSeq)
+	} else {
+		// Default: read last N messages from the end
+		// Calculate start sequence to get roughly 'last' messages
+		lastSeq := info.State.LastSeq
+		firstSeq := info.State.FirstSeq
+		calcStart := lastSeq - uint64(last) + 1
+		if calcStart < firstSeq || calcStart > lastSeq {
+			calcStart = firstSeq
+		}
+		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+		cfg.OptStartSeq = calcStart
+	}
+
+	// Create ordered consumer (ephemeral, auto-cleanup)
+	cons, err := s.OrderedConsumer(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create consumer: %w", err)
+	}
+
+	// Fetch messages
+	fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	msgs, err := cons.Fetch(last, jetstream.FetchMaxWait(3*time.Second))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 
 	var result []*model.StreamMessage
-	for seq := startSeq; seq <= lastSeq; seq++ {
-		msg, err := s.GetMsg(ctx, seq)
+	for msg := range msgs.Messages() {
+		select {
+		case <-fetchCtx.Done():
+			break
+		default:
+		}
+
+		meta, err := msg.Metadata()
 		if err != nil {
-			// Skip deleted/purged messages
 			continue
 		}
 
+		msgTime := meta.Timestamp
+
+		// Apply endTime filter
+		if hasEndTime && msgTime.After(endTimeVal) {
+			break
+		}
+
 		result = append(result, &model.StreamMessage{
-			Sequence:  int(msg.Sequence),
-			Subject:   msg.Subject,
-			Data:      string(msg.Data),
-			Published: msg.Time.Format(time.RFC3339),
+			Sequence:  int(meta.Sequence.Stream),
+			Subject:   msg.Subject(),
+			Data:      string(msg.Data()),
+			Published: msgTime.Format(time.RFC3339Nano),
 		})
+	}
+
+	if msgs.Error() != nil {
+		// Ignore timeout errors — they just mean no more messages
+		if msgs.Error().Error() != "nats: timeout" {
+			return nil, msgs.Error()
+		}
 	}
 
 	return result, nil
@@ -247,3 +319,12 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// parseRFC3339 parses a time string in RFC3339 or RFC3339Nano format.
+func parseRFC3339(s string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err == nil {
+		return t, nil
+	}
+	return time.Parse(time.RFC3339, s)
+}

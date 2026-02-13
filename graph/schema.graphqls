@@ -125,8 +125,25 @@ type Query {
   "Get value for a specific key from a KV bucket. Returns null if key does not exist"
   kvGet(bucket: String!, key: String!): KVEntry
 
-  "Read last N messages from a stream. Max 100 messages per request. Returns messages in chronological order (oldest first)"
-  streamMessages(stream: String!, last: Int! = 10): [StreamMessage!]!
+  """
+  Read messages from a stream with flexible filtering. Max 100 messages per request.
+  Returns messages in chronological order (oldest first).
+
+  Filters can be combined:
+  - last: max messages to return (default 10, cap 100)
+  - startSeq: start reading from this sequence number (inclusive)
+  - startTime: start reading from this timestamp (RFC3339, inclusive)
+  - endTime: stop reading at this timestamp (RFC3339, inclusive)
+  - subject: filter messages by subject (e.g. "orders.new" or "orders.*")
+  """
+  streamMessages(
+    stream: String!
+    last: Int! = 10
+    startSeq: Int
+    startTime: String
+    endTime: String
+    subject: String
+  ): [StreamMessage!]!
 }
 
 type Mutation {

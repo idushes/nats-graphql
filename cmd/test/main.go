@@ -847,7 +847,7 @@ func testStreamMessages() {
 		assert("published is set", lastMsg.Published != "", "empty published")
 
 		// Verify published is valid RFC3339
-		_, parseErr := time.Parse(time.RFC3339, lastMsg.Published)
+		_, parseErr := time.Parse(time.RFC3339Nano, lastMsg.Published)
 		assert("published is valid RFC3339", parseErr == nil, fmt.Sprint(parseErr))
 	}
 
@@ -909,6 +909,239 @@ func testStreamMessagesEdgeCases() {
 		// Clean up
 		js.DeleteStream(context.Background(), testStream+"_empty")
 	}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STREAM MESSAGES FILTER TESTS
+// ══════════════════════════════════════════════════════════════════
+
+func testStreamMessagesFilters() {
+	fmt.Println("\n── streamMessages filters ──")
+
+	type msg struct {
+		Sequence  int    `json:"sequence"`
+		Subject   string `json:"subject"`
+		Data      string `json:"data"`
+		Published string `json:"published"`
+	}
+
+	// Create a dedicated stream for filter tests
+	filterStream := testStream + "_filter"
+	_, err := js.CreateStream(context.Background(), jetstream.StreamConfig{
+		Name:     filterStream,
+		Subjects: []string{filterStream + ".>"},
+	})
+	if err != nil {
+		assert("create filter test stream", false, fmt.Sprint(err))
+		return
+	}
+	defer js.DeleteStream(context.Background(), filterStream)
+
+	// Publish messages with different subjects
+	for i := 1; i <= 3; i++ {
+		q := fmt.Sprintf(`mutation { publish(subject: "%s.orders", data: "order-%d") { sequence } }`, filterStream, i)
+		_, err := query(q)
+		if err != nil {
+			assert(fmt.Sprintf("publish order %d", i), false, fmt.Sprint(err))
+			return
+		}
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	for i := 1; i <= 3; i++ {
+		q := fmt.Sprintf(`mutation { publish(subject: "%s.payments", data: "payment-%d") { sequence } }`, filterStream, i)
+		_, err := query(q)
+		if err != nil {
+			assert(fmt.Sprintf("publish payment %d", i), false, fmt.Sprint(err))
+			return
+		}
+	}
+
+	assert("published 6 messages for filter tests", true, "")
+
+	// Read all messages and derive time boundaries from actual NATS timestamps
+	q := fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100) { sequence subject data published } }`, filterStream)
+	data, err := query(q)
+	assert("read all messages", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+
+	var allResult struct {
+		StreamMessages []msg `json:"streamMessages"`
+	}
+	json.Unmarshal(data, &allResult)
+	assert("got 6 messages total", len(allResult.StreamMessages) == 6, fmt.Sprintf("got: %d", len(allResult.StreamMessages)))
+	if len(allResult.StreamMessages) < 6 {
+		return
+	}
+
+	// Derive midTime from actual message timestamps (between last order and first payment)
+	lastOrderPublished := allResult.StreamMessages[2].Published    // 3rd message = last order
+	firstPaymentPublished := allResult.StreamMessages[3].Published // 4th message = first payment
+
+	lastOrderTime, _ := time.Parse(time.RFC3339Nano, lastOrderPublished)
+	firstPaymentTime, _ := time.Parse(time.RFC3339Nano, firstPaymentPublished)
+	midTimeVal := lastOrderTime.Add(firstPaymentTime.Sub(lastOrderTime) / 2)
+	midTime := midTimeVal.Format(time.RFC3339Nano)
+
+	beforePublish := allResult.StreamMessages[0].Published // timestamp of first message
+
+	// Read from startSeq of 4th message
+	seq4 := allResult.StreamMessages[3].Sequence
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, startSeq: %d) { sequence data } }`, filterStream, seq4)
+	data, err = query(q)
+	assert("read with startSeq", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got 3 messages from startSeq", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+		if len(result.StreamMessages) > 0 {
+			assert("first msg starts at seq4", result.StreamMessages[0].Sequence == seq4, fmt.Sprintf("got seq: %d, expected: %d", result.StreamMessages[0].Sequence, seq4))
+		}
+	}
+
+	// startSeq with last limit
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 2, startSeq: %d) { sequence data } }`, filterStream, seq4)
+	data, err = query(q)
+	assert("read startSeq with last=2", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got 2 messages with limit", len(result.StreamMessages) == 2, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+
+	// ── Test subject filter ──
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, subject: "%s.orders") { sequence subject data } }`, filterStream, filterStream)
+	data, err = query(q)
+	assert("read with subject filter 'orders'", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got 3 order messages", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+		for i, m := range result.StreamMessages {
+			assert(fmt.Sprintf("msg[%d] is order subject", i), strings.Contains(m.Subject, "orders"), "got: "+m.Subject)
+		}
+	}
+
+	// Filter by payments subject
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, subject: "%s.payments") { data } }`, filterStream, filterStream)
+	data, err = query(q)
+	assert("read with subject filter 'payments'", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got 3 payment messages", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+
+	// ── Test startTime ──
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, startTime: "%s") { sequence data } }`, filterStream, midTime)
+	data, err = query(q)
+	assert("read with startTime (midTime)", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got 3 messages after midTime", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+		if len(result.StreamMessages) > 0 {
+			assert("first msg after midTime is payment", strings.Contains(result.StreamMessages[0].Data, "payment"), "got: "+result.StreamMessages[0].Data)
+		}
+	}
+
+	// ── Test endTime ──
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, endTime: "%s") { sequence data } }`, filterStream, midTime)
+	data, err = query(q)
+	assert("read with endTime (midTime)", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got only order messages with endTime", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+		if len(result.StreamMessages) > 0 {
+			assert("all messages are orders", strings.Contains(result.StreamMessages[0].Data, "order"), "got: "+result.StreamMessages[0].Data)
+		}
+	}
+
+	// ── Test startTime + endTime (time range) ──
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, startTime: "%s", endTime: "%s") { data } }`, filterStream, beforePublish, midTime)
+	data, err = query(q)
+	assert("read with time range", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("time range returns only orders", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+
+	// ── Test combined: subject + startTime ──
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, subject: "%s.payments", startTime: "%s") { data } }`, filterStream, filterStream, midTime)
+	data, err = query(q)
+	assert("read with subject+startTime", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("got payments after midTime", len(result.StreamMessages) == 3, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+
+	// ── Test future startTime returns 0 messages ──
+	futureTime := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, startTime: "%s") { data } }`, filterStream, futureTime)
+	data, err = query(q)
+	assert("future startTime no error", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("future startTime returns 0 messages", len(result.StreamMessages) == 0, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+
+	// ── Test past endTime returns 0 messages ──
+	pastTime := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)
+	q = fmt.Sprintf(`{ streamMessages(stream: "%s", last: 100, endTime: "%s") { data } }`, filterStream, pastTime)
+	data, err = query(q)
+	assert("past endTime no error", err == nil, fmt.Sprint(err))
+	if err == nil {
+		var result struct {
+			StreamMessages []msg `json:"streamMessages"`
+		}
+		json.Unmarshal(data, &result)
+		assert("past endTime returns 0 messages", len(result.StreamMessages) == 0, fmt.Sprintf("got: %d", len(result.StreamMessages)))
+	}
+}
+
+func testStreamMessagesFilterErrors() {
+	fmt.Println("\n── streamMessages filter errors ──")
+
+	// Invalid startTime format
+	errMsg := queryExpectError(fmt.Sprintf(`{ streamMessages(stream: "%s", startTime: "not-a-date") { sequence } }`, testStream))
+	assert("invalid startTime returns error", errMsg != "", "expected error")
+
+	// Invalid endTime format
+	errMsg = queryExpectError(fmt.Sprintf(`{ streamMessages(stream: "%s", endTime: "not-a-date") { sequence } }`, testStream))
+	assert("invalid endTime returns error", errMsg != "", "expected error")
+
+	// startSeq = 0 should error
+	errMsg = queryExpectError(fmt.Sprintf(`{ streamMessages(stream: "%s", startSeq: 0) { sequence } }`, testStream))
+	assert("startSeq=0 returns error", errMsg != "", "expected error")
+
+	// startSeq = -1 should error
+	errMsg = queryExpectError(fmt.Sprintf(`{ streamMessages(stream: "%s", startSeq: -1) { sequence } }`, testStream))
+	assert("startSeq=-1 returns error", errMsg != "", "expected error")
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1036,6 +1269,8 @@ func main() {
 	testPublishErrors()
 	testStreamMessages()
 	testStreamMessagesEdgeCases()
+	testStreamMessagesFilters()
+	testStreamMessagesFilterErrors()
 
 	// Summary
 	total := passed + failed

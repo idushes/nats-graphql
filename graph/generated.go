@@ -79,7 +79,7 @@ type ComplexityRoot struct {
 		KeyValues      func(childComplexity int) int
 		KvGet          func(childComplexity int, bucket string, key string) int
 		KvKeys         func(childComplexity int, bucket string) int
-		StreamMessages func(childComplexity int, stream string, last int) int
+		StreamMessages func(childComplexity int, stream string, last int, startSeq *int, startTime *string, endTime *string, subject *string) int
 		Streams        func(childComplexity int) int
 	}
 
@@ -116,7 +116,7 @@ type QueryResolver interface {
 	Streams(ctx context.Context) ([]*model.StreamInfo, error)
 	KvKeys(ctx context.Context, bucket string) ([]string, error)
 	KvGet(ctx context.Context, bucket string, key string) (*model.KVEntry, error)
-	StreamMessages(ctx context.Context, stream string, last int) ([]*model.StreamMessage, error)
+	StreamMessages(ctx context.Context, stream string, last int, startSeq *int, startTime *string, endTime *string, subject *string) ([]*model.StreamMessage, error)
 }
 
 type executableSchema struct {
@@ -291,7 +291,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.StreamMessages(childComplexity, args["stream"].(string), args["last"].(int)), true
+		return e.complexity.Query.StreamMessages(childComplexity, args["stream"].(string), args["last"].(int), args["startSeq"].(*int), args["startTime"].(*string), args["endTime"].(*string), args["subject"].(*string)), true
 	case "Query.streams":
 		if e.complexity.Query.Streams == nil {
 			break
@@ -624,6 +624,26 @@ func (ec *executionContext) field_Query_streamMessages_args(ctx context.Context,
 		return nil, err
 	}
 	args["last"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "startSeq", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["startSeq"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "startTime", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["startTime"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "endTime", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["endTime"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "subject", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["subject"] = arg5
 	return args, nil
 }
 
@@ -1395,7 +1415,7 @@ func (ec *executionContext) _Query_streamMessages(ctx context.Context, field gra
 		ec.fieldContext_Query_streamMessages,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().StreamMessages(ctx, fc.Args["stream"].(string), fc.Args["last"].(int))
+			return ec.resolvers.Query().StreamMessages(ctx, fc.Args["stream"].(string), fc.Args["last"].(int), fc.Args["startSeq"].(*int), fc.Args["startTime"].(*string), fc.Args["endTime"].(*string), fc.Args["subject"].(*string))
 		},
 		nil,
 		ec.marshalNStreamMessage2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamMessageᚄ,
@@ -4882,6 +4902,24 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
 	return res
 }
 
