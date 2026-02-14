@@ -16,6 +16,7 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 **Streams**
 
 - `streams` — list all streams with config and runtime state
+- `streamCreate` — create a new stream (subjects, retention, storage, maxMsgs, maxBytes, replicas)
 - `streamMessages` — read messages with flexible filtering:
   - `startSeq` — start from sequence number
   - `startTime` / `endTime` — time range (RFC3339)

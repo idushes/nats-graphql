@@ -98,6 +98,61 @@ func (r *mutationResolver) KvDelete(ctx context.Context, bucket string, key stri
 	return true, nil
 }
 
+// StreamCreate is the resolver for the streamCreate field.
+func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error) {
+	cfg := jetstream.StreamConfig{
+		Name:     name,
+		Subjects: subjects,
+	}
+
+	if retention != nil {
+		switch *retention {
+		case "interest":
+			cfg.Retention = jetstream.InterestPolicy
+		case "workqueue":
+			cfg.Retention = jetstream.WorkQueuePolicy
+		default:
+			cfg.Retention = jetstream.LimitsPolicy
+		}
+	}
+
+	if storage != nil && *storage == "memory" {
+		cfg.Storage = jetstream.MemoryStorage
+	}
+
+	if maxMsgs != nil {
+		cfg.MaxMsgs = int64(*maxMsgs)
+	}
+	if maxBytes != nil {
+		cfg.MaxBytes = int64(*maxBytes)
+	}
+	if replicas != nil {
+		cfg.Replicas = *replicas
+	}
+
+	si, err := r.JS.CreateStream(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	info := si.CachedInfo()
+
+	return &model.StreamInfo{
+		Name:         info.Config.Name,
+		Subjects:     info.Config.Subjects,
+		Retention:    info.Config.Retention.String(),
+		MaxConsumers: info.Config.MaxConsumers,
+		MaxMsgs:      int(info.Config.MaxMsgs),
+		MaxBytes:     int(info.Config.MaxBytes),
+		Storage:      info.Config.Storage.String(),
+		Replicas:     info.Config.Replicas,
+		Messages:     int(info.State.Msgs),
+		Bytes:        int(info.State.Bytes),
+		Consumers:    info.State.Consumers,
+		Created:      info.Created.Format(time.RFC3339),
+	}, nil
+}
+
 // Publish is the resolver for the publish field.
 func (r *mutationResolver) Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error) {
 	const maxPayload = 1 << 20 // 1 MB

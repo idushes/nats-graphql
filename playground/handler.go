@@ -71,6 +71,18 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Create a new stream (mutation)
+#
+# mutation {
+#   streamCreate(name: "my-stream", subjects: ["orders.>"]) {
+#     name
+#     subjects
+#     retention
+#     storage
+#   }
+# }
+
+# -----------------------------------------------
 # Read last N messages from a stream (max 100)
 #
 # {

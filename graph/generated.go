@@ -66,10 +66,11 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		KvCreate func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
-		KvDelete func(childComplexity int, bucket string, key string) int
-		KvPut    func(childComplexity int, bucket string, key string, value string) int
-		Publish  func(childComplexity int, subject string, data string) int
+		KvCreate     func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
+		KvDelete     func(childComplexity int, bucket string, key string) int
+		KvPut        func(childComplexity int, bucket string, key string, value string) int
+		Publish      func(childComplexity int, subject string, data string) int
+		StreamCreate func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
 	}
 
 	PublishResult struct {
@@ -116,6 +117,7 @@ type MutationResolver interface {
 	KvCreate(ctx context.Context, bucket string, history *int, ttl *int, storage *string) (*model.KeyValue, error)
 	KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error)
 	KvDelete(ctx context.Context, bucket string, key string) (bool, error)
+	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
 }
 type QueryResolver interface {
@@ -260,6 +262,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Publish(childComplexity, args["subject"].(string), args["data"].(string)), true
+	case "Mutation.streamCreate":
+		if e.complexity.Mutation.StreamCreate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_streamCreate_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StreamCreate(childComplexity, args["name"].(string), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["replicas"].(*int)), true
 
 	case "PublishResult.sequence":
 		if e.complexity.PublishResult.Sequence == nil {
@@ -646,6 +659,47 @@ func (ec *executionContext) field_Mutation_publish_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["data"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_streamCreate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "subjects", ec.unmarshalNString2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["subjects"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "retention", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["retention"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "storage", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["storage"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxMsgs"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxBytes"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg6
 	return args, nil
 }
 
@@ -1253,6 +1307,73 @@ func (ec *executionContext) fieldContext_Mutation_kvDelete(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_kvDelete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_streamCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_streamCreate,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StreamCreate(ctx, fc.Args["name"].(string), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["replicas"].(*int))
+		},
+		nil,
+		ec.marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_streamCreate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_StreamInfo_name(ctx, field)
+			case "subjects":
+				return ec.fieldContext_StreamInfo_subjects(ctx, field)
+			case "retention":
+				return ec.fieldContext_StreamInfo_retention(ctx, field)
+			case "maxConsumers":
+				return ec.fieldContext_StreamInfo_maxConsumers(ctx, field)
+			case "maxMsgs":
+				return ec.fieldContext_StreamInfo_maxMsgs(ctx, field)
+			case "maxBytes":
+				return ec.fieldContext_StreamInfo_maxBytes(ctx, field)
+			case "storage":
+				return ec.fieldContext_StreamInfo_storage(ctx, field)
+			case "replicas":
+				return ec.fieldContext_StreamInfo_replicas(ctx, field)
+			case "messages":
+				return ec.fieldContext_StreamInfo_messages(ctx, field)
+			case "bytes":
+				return ec.fieldContext_StreamInfo_bytes(ctx, field)
+			case "consumers":
+				return ec.fieldContext_StreamInfo_consumers(ctx, field)
+			case "created":
+				return ec.fieldContext_StreamInfo_created(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_streamCreate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3847,6 +3968,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "streamCreate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_streamCreate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "publish":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_publish(ctx, field)
@@ -4697,6 +4825,10 @@ func (ec *executionContext) marshalNPublishResult2ᚖnatsᚑgraphqlᚋgraphᚋmo
 		return graphql.Null
 	}
 	return ec._PublishResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNStreamInfo2natsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo(ctx context.Context, sel ast.SelectionSet, v model.StreamInfo) graphql.Marshaler {
+	return ec._StreamInfo(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNStreamInfo2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamInfo) graphql.Marshaler {
