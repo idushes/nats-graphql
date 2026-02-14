@@ -71,6 +71,13 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Delete an entire KV bucket (mutation)
+#
+# mutation {
+#   kvDeleteBucket(bucket: "my-bucket")
+# }
+
+# -----------------------------------------------
 # Create a new stream (mutation)
 #
 # mutation {
@@ -80,6 +87,13 @@ const exampleQuery = `# List all Key-Value stores
 #     retention
 #     storage
 #   }
+# }
+
+# -----------------------------------------------
+# Delete a stream (mutation)
+#
+# mutation {
+#   streamDelete(name: "my-stream")
 # }
 
 # -----------------------------------------------
@@ -133,6 +147,14 @@ const exampleQuery = `# List all Key-Value stores
 #     stream
 #     sequence
 #   }
+# }
+
+# -----------------------------------------------
+# Publish a message with delay (mutation)
+# The message will be published after 30 seconds
+#
+# mutation {
+#   publishScheduled(subject: "orders.new", data: "{\"id\": 1}", delay: 30)
 # }
 
 # -----------------------------------------------
