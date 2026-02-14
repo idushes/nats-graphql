@@ -189,6 +189,29 @@ func (r *mutationResolver) Publish(ctx context.Context, subject string, data str
 	}, nil
 }
 
+// PublishScheduled is the resolver for the publishScheduled field.
+func (r *mutationResolver) PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error) {
+	const maxPayload = 1 << 20 // 1 MB
+	if len(data) > maxPayload {
+		return false, fmt.Errorf("payload too large: %d bytes (max %d)", len(data), maxPayload)
+	}
+	if delay <= 0 {
+		return false, fmt.Errorf("delay must be positive, got %d", delay)
+	}
+
+	go func() {
+		time.Sleep(time.Duration(delay) * time.Second)
+		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err := r.JS.Publish(bgCtx, subject, []byte(data))
+		if err != nil {
+			fmt.Printf("scheduled publish to %s failed: %v\n", subject, err)
+		}
+	}()
+
+	return true, nil
+}
+
 // KeyValues is the resolver for the keyValues field.
 func (r *queryResolver) KeyValues(ctx context.Context) ([]*model.KeyValue, error) {
 	var result []*model.KeyValue

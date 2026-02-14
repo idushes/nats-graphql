@@ -25,6 +25,7 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
   - `subject` — filter by subject pattern
   - `last` — limit results (max 100)
 - `publish` — publish a message to any subject (max 1MB)
+- `publishScheduled` — delayed publish after N seconds (fire-and-forget)
 
 **Subscriptions (WebSocket)**
 

@@ -66,13 +66,14 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		KvCreate       func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
-		KvDelete       func(childComplexity int, bucket string, key string) int
-		KvDeleteBucket func(childComplexity int, bucket string) int
-		KvPut          func(childComplexity int, bucket string, key string, value string) int
-		Publish        func(childComplexity int, subject string, data string) int
-		StreamCreate   func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
-		StreamDelete   func(childComplexity int, name string) int
+		KvCreate         func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
+		KvDelete         func(childComplexity int, bucket string, key string) int
+		KvDeleteBucket   func(childComplexity int, bucket string) int
+		KvPut            func(childComplexity int, bucket string, key string, value string) int
+		Publish          func(childComplexity int, subject string, data string) int
+		PublishScheduled func(childComplexity int, subject string, data string, delay int) int
+		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
+		StreamDelete     func(childComplexity int, name string) int
 	}
 
 	PublishResult struct {
@@ -123,6 +124,7 @@ type MutationResolver interface {
 	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
 	StreamDelete(ctx context.Context, name string) (bool, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
+	PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error)
 }
 type QueryResolver interface {
 	KeyValues(ctx context.Context) ([]*model.KeyValue, error)
@@ -277,6 +279,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Publish(childComplexity, args["subject"].(string), args["data"].(string)), true
+	case "Mutation.publishScheduled":
+		if e.complexity.Mutation.PublishScheduled == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishScheduled_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PublishScheduled(childComplexity, args["subject"].(string), args["data"].(string), args["delay"].(int)), true
 	case "Mutation.streamCreate":
 		if e.complexity.Mutation.StreamCreate == nil {
 			break
@@ -680,6 +693,27 @@ func (ec *executionContext) field_Mutation_kvPut_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["value"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_publishScheduled_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "subject", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["subject"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "data", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["data"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "delay", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["delay"] = arg2
 	return args, nil
 }
 
@@ -1551,6 +1585,47 @@ func (ec *executionContext) fieldContext_Mutation_publish(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_publish_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_publishScheduled(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_publishScheduled,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().PublishScheduled(ctx, fc.Args["subject"].(string), fc.Args["data"].(string), fc.Args["delay"].(int))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_publishScheduled(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_publishScheduled_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4122,6 +4197,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "publish":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_publish(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publishScheduled":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_publishScheduled(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
