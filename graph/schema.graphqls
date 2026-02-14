@@ -147,6 +147,14 @@ type Query {
 }
 
 type Mutation {
+  """
+  Create a new KV bucket. Returns the created bucket info.
+  - history: max history entries per key (default 1)
+  - ttl: key expiration in seconds (default 0 = no expiry)
+  - storage: "file" or "memory" (default "file")
+  """
+  kvCreate(bucket: String!, history: Int, ttl: Int, storage: String): KeyValue!
+
   "Put a value into a KV bucket. Creates or updates the key. Returns the stored entry"
   kvPut(bucket: String!, key: String!, value: String!): KVEntry!
 

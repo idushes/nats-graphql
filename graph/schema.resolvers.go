@@ -15,6 +15,49 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// KvCreate is the resolver for the kvCreate field.
+func (r *mutationResolver) KvCreate(ctx context.Context, bucket string, history *int, ttl *int, storage *string) (*model.KeyValue, error) {
+	cfg := jetstream.KeyValueConfig{
+		Bucket: bucket,
+	}
+
+	if history != nil {
+		cfg.History = uint8(*history)
+	}
+	if ttl != nil {
+		cfg.TTL = time.Duration(*ttl) * time.Second
+	}
+	if storage != nil {
+		switch *storage {
+		case "memory":
+			cfg.Storage = jetstream.MemoryStorage
+		default:
+			cfg.Storage = jetstream.FileStorage
+		}
+	}
+
+	kv, err := r.JS.CreateKeyValue(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := kv.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ttlSec := int(status.TTL().Seconds())
+	return &model.KeyValue{
+		Bucket:       status.Bucket(),
+		History:      int(status.History()),
+		TTL:          ttlSec,
+		Storage:      status.BackingStore(),
+		Bytes:        int(status.Bytes()),
+		Values:       int(status.Values()),
+		IsCompressed: status.IsCompressed(),
+	}, nil
+}
+
 // KvPut is the resolver for the kvPut field.
 func (r *mutationResolver) KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error) {
 	kv, err := r.JS.KeyValue(ctx, bucket)
@@ -274,10 +317,11 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 	}
 
 	var result []*model.StreamMessage
+loop:
 	for msg := range msgs.Messages() {
 		select {
 		case <-fetchCtx.Done():
-			break
+			break loop
 		default:
 		}
 

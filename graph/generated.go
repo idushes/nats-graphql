@@ -66,6 +66,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		KvCreate func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
 		KvDelete func(childComplexity int, bucket string, key string) int
 		KvPut    func(childComplexity int, bucket string, key string, value string) int
 		Publish  func(childComplexity int, subject string, data string) int
@@ -112,6 +113,7 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
+	KvCreate(ctx context.Context, bucket string, history *int, ttl *int, storage *string) (*model.KeyValue, error)
 	KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error)
 	KvDelete(ctx context.Context, bucket string, key string) (bool, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
@@ -214,6 +216,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyValue.Values(childComplexity), true
 
+	case "Mutation.kvCreate":
+		if e.complexity.Mutation.KvCreate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_kvCreate_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.KvCreate(childComplexity, args["bucket"].(string), args["history"].(*int), args["ttl"].(*int), args["storage"].(*string)), true
 	case "Mutation.kvDelete":
 		if e.complexity.Mutation.KvDelete == nil {
 			break
@@ -556,6 +569,32 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_kvCreate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "history", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["history"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "ttl", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["ttl"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "storage", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["storage"] = arg3
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_kvDelete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -1067,6 +1106,63 @@ func (ec *executionContext) fieldContext_KeyValue_isCompressed(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_kvCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_kvCreate,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().KvCreate(ctx, fc.Args["bucket"].(string), fc.Args["history"].(*int), fc.Args["ttl"].(*int), fc.Args["storage"].(*string))
+		},
+		nil,
+		ec.marshalNKeyValue2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKeyValue,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_kvCreate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "bucket":
+				return ec.fieldContext_KeyValue_bucket(ctx, field)
+			case "history":
+				return ec.fieldContext_KeyValue_history(ctx, field)
+			case "ttl":
+				return ec.fieldContext_KeyValue_ttl(ctx, field)
+			case "storage":
+				return ec.fieldContext_KeyValue_storage(ctx, field)
+			case "bytes":
+				return ec.fieldContext_KeyValue_bytes(ctx, field)
+			case "values":
+				return ec.fieldContext_KeyValue_values(ctx, field)
+			case "isCompressed":
+				return ec.fieldContext_KeyValue_isCompressed(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type KeyValue", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_kvCreate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -3730,6 +3826,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "kvCreate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_kvCreate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "kvPut":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_kvPut(ctx, field)
@@ -4522,6 +4625,10 @@ func (ec *executionContext) marshalNKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐ
 		return graphql.Null
 	}
 	return ec._KVEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNKeyValue2natsᚑgraphqlᚋgraphᚋmodelᚐKeyValue(ctx context.Context, sel ast.SelectionSet, v model.KeyValue) graphql.Marshaler {
+	return ec._KeyValue(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNKeyValue2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐKeyValueᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.KeyValue) graphql.Marshaler {

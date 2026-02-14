@@ -40,6 +40,18 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Create a new KV bucket (mutation)
+#
+# mutation {
+#   kvCreate(bucket: "my-bucket", history: 5, ttl: 3600) {
+#     bucket
+#     history
+#     ttl
+#     storage
+#   }
+# }
+
+# -----------------------------------------------
 # Put a value (mutation)
 #
 # mutation {

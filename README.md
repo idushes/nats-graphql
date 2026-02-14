@@ -9,6 +9,7 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 - `keyValues` — list all KV buckets with config and stats
 - `kvKeys` — list keys in a bucket
 - `kvGet` — read a key (returns null if missing)
+- `kvCreate` — create a new bucket (optional: history, ttl, storage)
 - `kvPut` — create or update a key
 - `kvDelete` — delete a key
 
