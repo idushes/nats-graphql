@@ -2,6 +2,44 @@
 
 GraphQL server for NATS JetStream administration. Provides an API to inspect and manage Key-Value stores and streams.
 
+## Features
+
+**Key-Value Stores**
+
+- `keyValues` — list all KV buckets with config and stats
+- `kvKeys` — list keys in a bucket
+- `kvGet` — read a key (returns null if missing)
+- `kvPut` — create or update a key
+- `kvDelete` — delete a key
+
+**Streams**
+
+- `streams` — list all streams with config and runtime state
+- `streamMessages` — read messages with flexible filtering:
+  - `startSeq` — start from sequence number
+  - `startTime` / `endTime` — time range (RFC3339)
+  - `subject` — filter by subject pattern
+  - `last` — limit results (max 100)
+- `publish` — publish a message to any subject (max 1MB)
+
+**Subscriptions (WebSocket)**
+
+- `streamSubscribe` — real-time message streaming via `graphql-transport-ws`
+  - Optional `subject` filter
+
+**Infrastructure**
+
+- GraphiQL playground with example queries and header editor
+- `/healthz` — liveness probe (always 200)
+- `/readyz` — readiness probe (checks NATS connection)
+- Request logging (method, path, status, duration)
+- Docker-ready (multi-stage Dockerfile)
+
+**Security**
+
+- Optional Bearer token auth (`AUTH_TOKEN`)
+- CORS (all origins)
+
 ## Quick Start
 
 ```bash
