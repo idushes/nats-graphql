@@ -98,6 +98,19 @@ func (r *mutationResolver) KvDelete(ctx context.Context, bucket string, key stri
 	return true, nil
 }
 
+// KvPurge is the resolver for the kvPurge field.
+func (r *mutationResolver) KvPurge(ctx context.Context, bucket string, key string) (bool, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return false, err
+	}
+	err = kv.Purge(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // KvDeleteBucket is the resolver for the kvDeleteBucket field.
 func (r *mutationResolver) KvDeleteBucket(ctx context.Context, bucket string) (bool, error) {
 	err := r.JS.DeleteKeyValue(ctx, bucket)

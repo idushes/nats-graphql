@@ -11,7 +11,8 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 - `kvGet` — read a key (returns null if missing)
 - `kvCreate` — create a new bucket (optional: history, ttl, storage)
 - `kvPut` — create or update a key
-- `kvDelete` — delete a key
+- `kvDelete` — soft-delete a key (leaves tombstone marker)
+- `kvPurge` — hard-delete a key (removes key + all history)
 - `kvDeleteBucket` — delete an entire bucket
 
 **Streams**

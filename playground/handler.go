@@ -64,10 +64,17 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
-# Delete a key (mutation)
+# Delete a key (leaves tombstone, key appears deleted)
 #
 # mutation {
 #   kvDelete(bucket: "my-bucket", key: "my-key")
+# }
+
+# -----------------------------------------------
+# Purge a key (fully removes key + all history)
+#
+# mutation {
+#   kvPurge(bucket: "my-bucket", key: "my-key")
 # }
 
 # -----------------------------------------------

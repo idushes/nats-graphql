@@ -158,8 +158,11 @@ type Mutation {
   "Put a value into a KV bucket. Creates or updates the key. Returns the stored entry"
   kvPut(bucket: String!, key: String!, value: String!): KVEntry!
 
-  "Delete a key from a KV bucket. Returns true if successful"
+  "Delete a key from a KV bucket (leaves tombstone marker). Returns true if successful"
   kvDelete(bucket: String!, key: String!): Boolean!
+
+  "Purge a key — fully removes the key and all its history (no tombstone). Returns true if successful"
+  kvPurge(bucket: String!, key: String!): Boolean!
 
   "Delete an entire KV bucket. Returns true if successful"
   kvDeleteBucket(bucket: String!): Boolean!
