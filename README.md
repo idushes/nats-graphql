@@ -12,11 +12,13 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 - `kvCreate` — create a new bucket (optional: history, ttl, storage)
 - `kvPut` — create or update a key
 - `kvDelete` — delete a key
+- `kvDeleteBucket` — delete an entire bucket
 
 **Streams**
 
 - `streams` — list all streams with config and runtime state
 - `streamCreate` — create a new stream (subjects, retention, storage, maxMsgs, maxBytes, replicas)
+- `streamDelete` — delete a stream
 - `streamMessages` — read messages with flexible filtering:
   - `startSeq` — start from sequence number
   - `startTime` / `endTime` — time range (RFC3339)

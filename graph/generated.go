@@ -66,11 +66,13 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		KvCreate     func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
-		KvDelete     func(childComplexity int, bucket string, key string) int
-		KvPut        func(childComplexity int, bucket string, key string, value string) int
-		Publish      func(childComplexity int, subject string, data string) int
-		StreamCreate func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
+		KvCreate       func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
+		KvDelete       func(childComplexity int, bucket string, key string) int
+		KvDeleteBucket func(childComplexity int, bucket string) int
+		KvPut          func(childComplexity int, bucket string, key string, value string) int
+		Publish        func(childComplexity int, subject string, data string) int
+		StreamCreate   func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
+		StreamDelete   func(childComplexity int, name string) int
 	}
 
 	PublishResult struct {
@@ -117,7 +119,9 @@ type MutationResolver interface {
 	KvCreate(ctx context.Context, bucket string, history *int, ttl *int, storage *string) (*model.KeyValue, error)
 	KvPut(ctx context.Context, bucket string, key string, value string) (*model.KVEntry, error)
 	KvDelete(ctx context.Context, bucket string, key string) (bool, error)
+	KvDeleteBucket(ctx context.Context, bucket string) (bool, error)
 	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
+	StreamDelete(ctx context.Context, name string) (bool, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
 }
 type QueryResolver interface {
@@ -240,6 +244,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.KvDelete(childComplexity, args["bucket"].(string), args["key"].(string)), true
+	case "Mutation.kvDeleteBucket":
+		if e.complexity.Mutation.KvDeleteBucket == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_kvDeleteBucket_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.KvDeleteBucket(childComplexity, args["bucket"].(string)), true
 	case "Mutation.kvPut":
 		if e.complexity.Mutation.KvPut == nil {
 			break
@@ -273,6 +288,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.StreamCreate(childComplexity, args["name"].(string), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["replicas"].(*int)), true
+	case "Mutation.streamDelete":
+		if e.complexity.Mutation.StreamDelete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_streamDelete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StreamDelete(childComplexity, args["name"].(string)), true
 
 	case "PublishResult.sequence":
 		if e.complexity.PublishResult.Sequence == nil {
@@ -609,6 +635,17 @@ func (ec *executionContext) field_Mutation_kvCreate_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_kvDeleteBucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_kvDelete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -700,6 +737,17 @@ func (ec *executionContext) field_Mutation_streamCreate_args(ctx context.Context
 		return nil, err
 	}
 	args["replicas"] = arg6
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_streamDelete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -1313,6 +1361,47 @@ func (ec *executionContext) fieldContext_Mutation_kvDelete(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_kvDeleteBucket(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_kvDeleteBucket,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().KvDeleteBucket(ctx, fc.Args["bucket"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_kvDeleteBucket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_kvDeleteBucket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_streamCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1374,6 +1463,47 @@ func (ec *executionContext) fieldContext_Mutation_streamCreate(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_streamCreate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_streamDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_streamDelete,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StreamDelete(ctx, fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_streamDelete(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_streamDelete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3968,9 +4098,23 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "kvDeleteBucket":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_kvDeleteBucket(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "streamCreate":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_streamCreate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "streamDelete":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_streamDelete(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

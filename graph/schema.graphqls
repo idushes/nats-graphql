@@ -161,6 +161,9 @@ type Mutation {
   "Delete a key from a KV bucket. Returns true if successful"
   kvDelete(bucket: String!, key: String!): Boolean!
 
+  "Delete an entire KV bucket. Returns true if successful"
+  kvDeleteBucket(bucket: String!): Boolean!
+
   """
   Create a new stream. Returns the created stream info.
   - subjects: subject filters (e.g. ["orders.>"])
@@ -179,6 +182,9 @@ type Mutation {
     maxBytes: Int
     replicas: Int
   ): StreamInfo!
+
+  "Delete a stream. Returns true if successful"
+  streamDelete(name: String!): Boolean!
 
   "Publish a message to a NATS subject. Max payload size: 1MB. Returns the stream and sequence of the published message"
   publish(subject: String!, data: String!): PublishResult!

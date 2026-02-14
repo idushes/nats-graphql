@@ -98,6 +98,15 @@ func (r *mutationResolver) KvDelete(ctx context.Context, bucket string, key stri
 	return true, nil
 }
 
+// KvDeleteBucket is the resolver for the kvDeleteBucket field.
+func (r *mutationResolver) KvDeleteBucket(ctx context.Context, bucket string) (bool, error) {
+	err := r.JS.DeleteKeyValue(ctx, bucket)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // StreamCreate is the resolver for the streamCreate field.
 func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error) {
 	cfg := jetstream.StreamConfig{
@@ -151,6 +160,15 @@ func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjec
 		Consumers:    info.State.Consumers,
 		Created:      info.Created.Format(time.RFC3339),
 	}, nil
+}
+
+// StreamDelete is the resolver for the streamDelete field.
+func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool, error) {
+	err := r.JS.DeleteStream(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Publish is the resolver for the publish field.
