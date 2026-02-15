@@ -184,6 +184,84 @@ const exampleQuery = `# List all Key-Value stores
 #     created
 #   }
 # }
+
+# -----------------------------------------------
+# List consumers on a stream
+#
+# {
+#   consumers(stream: "my-stream") {
+#     name
+#     stream
+#     deliverPolicy
+#     ackPolicy
+#     numPending
+#     numAckPending
+#     paused
+#   }
+# }
+
+# -----------------------------------------------
+# Get info about a specific consumer
+#
+# {
+#   consumerInfo(stream: "my-stream", name: "my-consumer") {
+#     name
+#     stream
+#     deliverPolicy
+#     ackPolicy
+#     maxDeliver
+#     maxAckPending
+#     numPending
+#     numAckPending
+#     paused
+#   }
+# }
+
+# -----------------------------------------------
+# Create or update a consumer (mutation)
+#
+# mutation {
+#   consumerCreate(
+#     stream: "my-stream"
+#     name: "my-consumer"
+#     filterSubject: "orders.>"
+#     deliverPolicy: "new"
+#     ackPolicy: "explicit"
+#     maxDeliver: 5
+#     description: "Process new orders"
+#   ) {
+#     name
+#     stream
+#     deliverPolicy
+#     ackPolicy
+#     maxDeliver
+#   }
+# }
+
+# -----------------------------------------------
+# Delete a consumer (mutation)
+#
+# mutation {
+#   consumerDelete(stream: "my-stream", name: "my-consumer")
+# }
+
+# -----------------------------------------------
+# Pause a consumer until a specific time (mutation)
+#
+# mutation {
+#   consumerPause(
+#     stream: "my-stream"
+#     name: "my-consumer"
+#     pauseUntil: "2026-02-15T14:00:00Z"
+#   )
+# }
+
+# -----------------------------------------------
+# Resume a paused consumer (mutation)
+#
+# mutation {
+#   consumerResume(stream: "my-stream", name: "my-consumer")
+# }
 `
 
 var page = template.Must(template.New("playground").Parse(`<!DOCTYPE html>
