@@ -73,6 +73,7 @@ type ComplexityRoot struct {
 		KvPut            func(childComplexity int, bucket string, key string, value string) int
 		Publish          func(childComplexity int, subject string, data string) int
 		PublishScheduled func(childComplexity int, subject string, data string, delay int) int
+		StreamCopy       func(childComplexity int, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
 		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) int
 		StreamDelete     func(childComplexity int, name string) int
 	}
@@ -101,6 +102,7 @@ type ComplexityRoot struct {
 		Name         func(childComplexity int) int
 		Replicas     func(childComplexity int) int
 		Retention    func(childComplexity int) int
+		Sources      func(childComplexity int) int
 		Storage      func(childComplexity int) int
 		Subjects     func(childComplexity int) int
 	}
@@ -110,6 +112,13 @@ type ComplexityRoot struct {
 		Published func(childComplexity int) int
 		Sequence  func(childComplexity int) int
 		Subject   func(childComplexity int) int
+	}
+
+	StreamSourceInfo struct {
+		Active        func(childComplexity int) int
+		FilterSubject func(childComplexity int) int
+		Lag           func(childComplexity int) int
+		Name          func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -125,6 +134,7 @@ type MutationResolver interface {
 	KvDeleteBucket(ctx context.Context, bucket string) (bool, error)
 	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
 	StreamDelete(ctx context.Context, name string) (bool, error)
+	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
 	PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error)
 }
@@ -303,6 +313,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.PublishScheduled(childComplexity, args["subject"].(string), args["data"].(string), args["delay"].(int)), true
+	case "Mutation.streamCopy":
+		if e.complexity.Mutation.StreamCopy == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_streamCopy_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StreamCopy(childComplexity, args["name"].(string), args["sources"].([]*model.StreamSourceInput), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["replicas"].(*int)), true
 	case "Mutation.streamCreate":
 		if e.complexity.Mutation.StreamCreate == nil {
 			break
@@ -445,6 +466,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.StreamInfo.Retention(childComplexity), true
+	case "StreamInfo.sources":
+		if e.complexity.StreamInfo.Sources == nil {
+			break
+		}
+
+		return e.complexity.StreamInfo.Sources(childComplexity), true
 	case "StreamInfo.storage":
 		if e.complexity.StreamInfo.Storage == nil {
 			break
@@ -483,6 +510,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.StreamMessage.Subject(childComplexity), true
 
+	case "StreamSourceInfo.active":
+		if e.complexity.StreamSourceInfo.Active == nil {
+			break
+		}
+
+		return e.complexity.StreamSourceInfo.Active(childComplexity), true
+	case "StreamSourceInfo.filterSubject":
+		if e.complexity.StreamSourceInfo.FilterSubject == nil {
+			break
+		}
+
+		return e.complexity.StreamSourceInfo.FilterSubject(childComplexity), true
+	case "StreamSourceInfo.lag":
+		if e.complexity.StreamSourceInfo.Lag == nil {
+			break
+		}
+
+		return e.complexity.StreamSourceInfo.Lag(childComplexity), true
+	case "StreamSourceInfo.name":
+		if e.complexity.StreamSourceInfo.Name == nil {
+			break
+		}
+
+		return e.complexity.StreamSourceInfo.Name(childComplexity), true
+
 	case "Subscription.streamSubscribe":
 		if e.complexity.Subscription.StreamSubscribe == nil {
 			break
@@ -502,7 +554,9 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
-	inputUnmarshalMap := graphql.BuildUnmarshalerMap()
+	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputStreamSourceInput,
+	)
 	first := true
 
 	switch opCtx.Operation.Operation {
@@ -759,6 +813,52 @@ func (ec *executionContext) field_Mutation_publish_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["data"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_streamCopy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "sources", ec.unmarshalNStreamSourceInput2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInputᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["sources"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "subjects", ec.unmarshalOString2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["subjects"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "retention", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["retention"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "storage", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["storage"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxMsgs"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxBytes"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg7
 	return args, nil
 }
 
@@ -1555,6 +1655,8 @@ func (ec *executionContext) fieldContext_Mutation_streamCreate(ctx context.Conte
 				return ec.fieldContext_StreamInfo_consumers(ctx, field)
 			case "created":
 				return ec.fieldContext_StreamInfo_created(ctx, field)
+			case "sources":
+				return ec.fieldContext_StreamInfo_sources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
 		},
@@ -1608,6 +1710,75 @@ func (ec *executionContext) fieldContext_Mutation_streamDelete(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_streamDelete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_streamCopy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_streamCopy,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StreamCopy(ctx, fc.Args["name"].(string), fc.Args["sources"].([]*model.StreamSourceInput), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["replicas"].(*int))
+		},
+		nil,
+		ec.marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_streamCopy(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_StreamInfo_name(ctx, field)
+			case "subjects":
+				return ec.fieldContext_StreamInfo_subjects(ctx, field)
+			case "retention":
+				return ec.fieldContext_StreamInfo_retention(ctx, field)
+			case "maxConsumers":
+				return ec.fieldContext_StreamInfo_maxConsumers(ctx, field)
+			case "maxMsgs":
+				return ec.fieldContext_StreamInfo_maxMsgs(ctx, field)
+			case "maxBytes":
+				return ec.fieldContext_StreamInfo_maxBytes(ctx, field)
+			case "storage":
+				return ec.fieldContext_StreamInfo_storage(ctx, field)
+			case "replicas":
+				return ec.fieldContext_StreamInfo_replicas(ctx, field)
+			case "messages":
+				return ec.fieldContext_StreamInfo_messages(ctx, field)
+			case "bytes":
+				return ec.fieldContext_StreamInfo_bytes(ctx, field)
+			case "consumers":
+				return ec.fieldContext_StreamInfo_consumers(ctx, field)
+			case "created":
+				return ec.fieldContext_StreamInfo_created(ctx, field)
+			case "sources":
+				return ec.fieldContext_StreamInfo_sources(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_streamCopy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1853,6 +2024,8 @@ func (ec *executionContext) fieldContext_Query_streams(_ context.Context, field 
 				return ec.fieldContext_StreamInfo_consumers(ctx, field)
 			case "created":
 				return ec.fieldContext_StreamInfo_created(ctx, field)
+			case "sources":
+				return ec.fieldContext_StreamInfo_sources(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StreamInfo", field.Name)
 		},
@@ -2459,6 +2632,45 @@ func (ec *executionContext) fieldContext_StreamInfo_created(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _StreamInfo_sources(ctx context.Context, field graphql.CollectedField, obj *model.StreamInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamInfo_sources,
+		func(ctx context.Context) (any, error) {
+			return obj.Sources, nil
+		},
+		nil,
+		ec.marshalOStreamSourceInfo2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInfoᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamInfo_sources(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_StreamSourceInfo_name(ctx, field)
+			case "lag":
+				return ec.fieldContext_StreamSourceInfo_lag(ctx, field)
+			case "active":
+				return ec.fieldContext_StreamSourceInfo_active(ctx, field)
+			case "filterSubject":
+				return ec.fieldContext_StreamSourceInfo_filterSubject(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StreamSourceInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _StreamMessage_sequence(ctx context.Context, field graphql.CollectedField, obj *model.StreamMessage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2565,6 +2777,122 @@ func (ec *executionContext) _StreamMessage_published(ctx context.Context, field 
 func (ec *executionContext) fieldContext_StreamMessage_published(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "StreamMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StreamSourceInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.StreamSourceInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamSourceInfo_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamSourceInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamSourceInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StreamSourceInfo_lag(ctx context.Context, field graphql.CollectedField, obj *model.StreamSourceInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamSourceInfo_lag,
+		func(ctx context.Context) (any, error) {
+			return obj.Lag, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamSourceInfo_lag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamSourceInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StreamSourceInfo_active(ctx context.Context, field graphql.CollectedField, obj *model.StreamSourceInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamSourceInfo_active,
+		func(ctx context.Context) (any, error) {
+			return obj.Active, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamSourceInfo_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamSourceInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StreamSourceInfo_filterSubject(ctx context.Context, field graphql.CollectedField, obj *model.StreamSourceInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamSourceInfo_filterSubject,
+		func(ctx context.Context) (any, error) {
+			return obj.FilterSubject, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamSourceInfo_filterSubject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamSourceInfo",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4072,6 +4400,40 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputStreamSourceInput(ctx context.Context, obj any) (model.StreamSourceInput, error) {
+	var it model.StreamSourceInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "filterSubject"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "filterSubject":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("filterSubject"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FilterSubject = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4267,6 +4629,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "streamDelete":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_streamDelete(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "streamCopy":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_streamCopy(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4580,6 +4949,8 @@ func (ec *executionContext) _StreamInfo(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "sources":
+			out.Values[i] = ec._StreamInfo_sources(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4634,6 +5005,57 @@ func (ec *executionContext) _StreamMessage(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var streamSourceInfoImplementors = []string{"StreamSourceInfo"}
+
+func (ec *executionContext) _StreamSourceInfo(ctx context.Context, sel ast.SelectionSet, obj *model.StreamSourceInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, streamSourceInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StreamSourceInfo")
+		case "name":
+			out.Values[i] = ec._StreamSourceInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lag":
+			out.Values[i] = ec._StreamSourceInfo_lag(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "active":
+			out.Values[i] = ec._StreamSourceInfo_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "filterSubject":
+			out.Values[i] = ec._StreamSourceInfo_filterSubject(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5246,6 +5668,36 @@ func (ec *executionContext) marshalNStreamMessage2ᚖnatsᚑgraphqlᚋgraphᚋmo
 	return ec._StreamMessage(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNStreamSourceInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInfo(ctx context.Context, sel ast.SelectionSet, v *model.StreamSourceInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StreamSourceInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNStreamSourceInput2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInputᚄ(ctx context.Context, v any) ([]*model.StreamSourceInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.StreamSourceInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNStreamSourceInput2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNStreamSourceInput2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInput(ctx context.Context, v any) (*model.StreamSourceInput, error) {
+	res, err := ec.unmarshalInputStreamSourceInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5598,6 +6050,89 @@ func (ec *executionContext) marshalOKVEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐ
 		return graphql.Null
 	}
 	return ec._KVEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOStreamSourceInfo2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamSourceInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNStreamSourceInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamSourceInfo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

@@ -74,6 +74,8 @@ type StreamInfo struct {
 	Consumers int `json:"consumers"`
 	// Stream creation timestamp in RFC3339 format
 	Created string `json:"created"`
+	// List of source streams this stream is aggregating from. Null if not sourcing
+	Sources []*StreamSourceInfo `json:"sources,omitempty"`
 }
 
 // Single message from a NATS JetStream stream.
@@ -86,6 +88,26 @@ type StreamMessage struct {
 	Data string `json:"data"`
 	// Timestamp when the message was stored, in RFC3339 format
 	Published string `json:"published"`
+}
+
+// Information about an upstream source stream.
+type StreamSourceInfo struct {
+	// Name of the source stream
+	Name string `json:"name"`
+	// Number of messages behind the source stream
+	Lag int `json:"lag"`
+	// Duration since last activity in nanoseconds. -1 means no activity
+	Active int `json:"active"`
+	// Subject filter applied to this source, if any
+	FilterSubject *string `json:"filterSubject,omitempty"`
+}
+
+// Input for specifying a source stream to aggregate from.
+type StreamSourceInput struct {
+	// Name of the source stream
+	Name string `json:"name"`
+	// Optional subject filter — only messages matching this subject will be sourced
+	FilterSubject *string `json:"filterSubject,omitempty"`
 }
 
 type Subscription struct {

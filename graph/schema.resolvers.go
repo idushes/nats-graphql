@@ -172,6 +172,7 @@ func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjec
 		Bytes:        int(info.State.Bytes),
 		Consumers:    info.State.Consumers,
 		Created:      info.Created.Format(time.RFC3339),
+		Sources:      mapSources(info.Sources),
 	}, nil
 }
 
@@ -182,6 +183,82 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 		return false, err
 	}
 	return true, nil
+}
+
+// StreamCopy is the resolver for the streamCopy field.
+func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error) {
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("at least one source stream is required")
+	}
+
+	// Map input sources to JetStream StreamSource configs
+	jsSources := make([]*jetstream.StreamSource, len(sources))
+	for i, src := range sources {
+		ss := &jetstream.StreamSource{
+			Name: src.Name,
+		}
+		if src.FilterSubject != nil && *src.FilterSubject != "" {
+			ss.FilterSubject = *src.FilterSubject
+		}
+		jsSources[i] = ss
+	}
+
+	cfg := jetstream.StreamConfig{
+		Name:    name,
+		Sources: jsSources,
+	}
+
+	if len(subjects) > 0 {
+		cfg.Subjects = subjects
+	}
+
+	if retention != nil {
+		switch *retention {
+		case "interest":
+			cfg.Retention = jetstream.InterestPolicy
+		case "workqueue":
+			cfg.Retention = jetstream.WorkQueuePolicy
+		default:
+			cfg.Retention = jetstream.LimitsPolicy
+		}
+	}
+
+	if storage != nil && *storage == "memory" {
+		cfg.Storage = jetstream.MemoryStorage
+	}
+
+	if maxMsgs != nil {
+		cfg.MaxMsgs = int64(*maxMsgs)
+	}
+	if maxBytes != nil {
+		cfg.MaxBytes = int64(*maxBytes)
+	}
+	if replicas != nil {
+		cfg.Replicas = *replicas
+	}
+
+	si, err := r.JS.CreateStream(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	info := si.CachedInfo()
+
+	return &model.StreamInfo{
+		Name:         info.Config.Name,
+		Subjects:     info.Config.Subjects,
+		Retention:    info.Config.Retention.String(),
+		MaxConsumers: info.Config.MaxConsumers,
+		MaxMsgs:      int(info.Config.MaxMsgs),
+		MaxBytes:     int(info.Config.MaxBytes),
+		Storage:      info.Config.Storage.String(),
+		Replicas:     info.Config.Replicas,
+		Messages:     int(info.State.Msgs),
+		Bytes:        int(info.State.Bytes),
+		Consumers:    info.State.Consumers,
+		Created:      info.Created.Format(time.RFC3339),
+		Sources:      mapSources(info.Sources),
+	}, nil
 }
 
 // Publish is the resolver for the publish field.
@@ -286,6 +363,7 @@ func (r *queryResolver) Streams(ctx context.Context) ([]*model.StreamInfo, error
 			Bytes:        int(si.State.Bytes),
 			Consumers:    si.State.Consumers,
 			Created:      si.Created.Format(time.RFC3339),
+			Sources:      mapSources(si.Sources),
 		})
 	}
 

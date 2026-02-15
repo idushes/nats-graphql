@@ -1,6 +1,11 @@
 package graph
 
-import "time"
+import (
+	"nats-graphql/graph/model"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
+)
 
 // parseRFC3339 parses a time string in RFC3339 or RFC3339Nano format.
 func parseRFC3339(s string) (time.Time, error) {
@@ -9,4 +14,26 @@ func parseRFC3339(s string) (time.Time, error) {
 		return t, nil
 	}
 	return time.Parse(time.RFC3339, s)
+}
+
+// mapSources converts JetStream StreamSourceInfo to GraphQL model.
+// Returns nil if no sources are present (so the field is null in the response).
+func mapSources(sources []*jetstream.StreamSourceInfo) []*model.StreamSourceInfo {
+	if len(sources) == 0 {
+		return nil
+	}
+	result := make([]*model.StreamSourceInfo, len(sources))
+	for i, src := range sources {
+		s := &model.StreamSourceInfo{
+			Name:   src.Name,
+			Lag:    int(src.Lag),
+			Active: int(src.Active),
+		}
+		if src.FilterSubject != "" {
+			fs := src.FilterSubject
+			s.FilterSubject = &fs
+		}
+		result[i] = s
+	}
+	return result
 }

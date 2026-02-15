@@ -19,6 +19,7 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 
 - `streams` — list all streams with config and runtime state
 - `streamCreate` — create a new stream (subjects, retention, storage, maxMsgs, maxBytes, replicas)
+- `streamCopy` — create a stream that aggregates messages from multiple source streams
 - `streamDelete` — delete a stream
 - `streamMessages` — read messages with flexible filtering:
   - `startSeq` — start from sequence number
@@ -162,6 +163,32 @@ mutation {
     bytes
     consumers
     created
+    sources {
+      name
+      lag
+      active
+      filterSubject
+    }
+  }
+}
+```
+
+**Create a stream that aggregates from multiple sources (mutation):**
+
+```graphql
+mutation {
+  streamCopy(
+    name: "all-orders"
+    sources: [
+      { name: "orders-eu" }
+      { name: "orders-us", filterSubject: "orders.paid" }
+    ]
+  ) {
+    name
+    sources {
+      name
+      lag
+    }
   }
 }
 ```

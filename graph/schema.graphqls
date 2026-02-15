@@ -65,6 +65,26 @@ type StreamInfo {
 
   "Stream creation timestamp in RFC3339 format"
   created: String!
+
+  "List of source streams this stream is aggregating from. Null if not sourcing"
+  sources: [StreamSourceInfo!]
+}
+
+"""
+Information about an upstream source stream.
+"""
+type StreamSourceInfo {
+  "Name of the source stream"
+  name: String!
+
+  "Number of messages behind the source stream"
+  lag: Int!
+
+  "Duration since last activity in nanoseconds. -1 means no activity"
+  active: Int!
+
+  "Subject filter applied to this source, if any"
+  filterSubject: String
 }
 
 """
@@ -189,6 +209,25 @@ type Mutation {
   "Delete a stream. Returns true if successful"
   streamDelete(name: String!): Boolean!
 
+  """
+  Create a new stream that aggregates (sources) messages from one or more existing streams.
+  Messages from all source streams are interleaved into the new stream.
+  Optionally, the stream can also listen on its own subjects.
+  - sources: list of source streams to aggregate from
+  - subjects: optional own subjects (e.g. ["local.>"])
+  - retention, storage, maxMsgs, maxBytes, replicas: same as streamCreate
+  """
+  streamCopy(
+    name: String!
+    sources: [StreamSourceInput!]!
+    subjects: [String!]
+    retention: String
+    storage: String
+    maxMsgs: Int
+    maxBytes: Int
+    replicas: Int
+  ): StreamInfo!
+
   "Publish a message to a NATS subject. Max payload size: 1MB. Returns the stream and sequence of the published message"
   publish(subject: String!, data: String!): PublishResult!
 
@@ -198,6 +237,17 @@ type Mutation {
   Note: scheduled messages are lost if the server restarts before delivery.
   """
   publishScheduled(subject: String!, data: String!, delay: Int!): Boolean!
+}
+
+"""
+Input for specifying a source stream to aggregate from.
+"""
+input StreamSourceInput {
+  "Name of the source stream"
+  name: String!
+
+  "Optional subject filter — only messages matching this subject will be sourced"
+  filterSubject: String
 }
 
 type Subscription {
