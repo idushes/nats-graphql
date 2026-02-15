@@ -121,7 +121,7 @@ func (r *mutationResolver) KvDeleteBucket(ctx context.Context, bucket string) (b
 }
 
 // StreamCreate is the resolver for the streamCreate field.
-func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error) {
+func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	cfg := jetstream.StreamConfig{
 		Name:     name,
 		Subjects: subjects,
@@ -148,6 +148,9 @@ func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjec
 	if maxBytes != nil {
 		cfg.MaxBytes = int64(*maxBytes)
 	}
+	if maxAge != nil {
+		cfg.MaxAge = time.Duration(*maxAge) * time.Second
+	}
 	if replicas != nil {
 		cfg.Replicas = *replicas
 	}
@@ -166,6 +169,7 @@ func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjec
 		MaxConsumers: info.Config.MaxConsumers,
 		MaxMsgs:      int(info.Config.MaxMsgs),
 		MaxBytes:     int(info.Config.MaxBytes),
+		MaxAge:       int(info.Config.MaxAge / time.Second),
 		Storage:      info.Config.Storage.String(),
 		Replicas:     info.Config.Replicas,
 		Messages:     int(info.State.Msgs),
@@ -186,7 +190,7 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 }
 
 // StreamCopy is the resolver for the streamCopy field.
-func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error) {
+func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	if len(sources) == 0 {
 		return nil, fmt.Errorf("at least one source stream is required")
 	}
@@ -233,6 +237,9 @@ func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources 
 	if maxBytes != nil {
 		cfg.MaxBytes = int64(*maxBytes)
 	}
+	if maxAge != nil {
+		cfg.MaxAge = time.Duration(*maxAge) * time.Second
+	}
 	if replicas != nil {
 		cfg.Replicas = *replicas
 	}
@@ -251,6 +258,7 @@ func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources 
 		MaxConsumers: info.Config.MaxConsumers,
 		MaxMsgs:      int(info.Config.MaxMsgs),
 		MaxBytes:     int(info.Config.MaxBytes),
+		MaxAge:       int(info.Config.MaxAge / time.Second),
 		Storage:      info.Config.Storage.String(),
 		Replicas:     info.Config.Replicas,
 		Messages:     int(info.State.Msgs),
@@ -455,6 +463,7 @@ func (r *queryResolver) Streams(ctx context.Context) ([]*model.StreamInfo, error
 			MaxConsumers: si.Config.MaxConsumers,
 			MaxMsgs:      int(si.Config.MaxMsgs),
 			MaxBytes:     int(si.Config.MaxBytes),
+			MaxAge:       int(si.Config.MaxAge / time.Second),
 			Storage:      si.Config.Storage.String(),
 			Replicas:     si.Config.Replicas,
 			Messages:     int(si.State.Msgs),

@@ -48,6 +48,9 @@ type StreamInfo {
   "Maximum total size of messages in the stream in bytes. -1 means unlimited"
   maxBytes: Int!
 
+  "Maximum age of messages in the stream in seconds. 0 means no age limit"
+  maxAge: Int!
+
   "Storage type: File (persistent to disk) or Memory (in-memory only)"
   storage: String!
 
@@ -263,6 +266,7 @@ type Mutation {
   - storage: "file" (default) or "memory"
   - maxMsgs: max messages (-1 = unlimited, default)
   - maxBytes: max total bytes (-1 = unlimited, default)
+  - maxAge: max message age in seconds (0 = no limit, default)
   - replicas: number of replicas (default 1)
   """
   streamCreate(
@@ -272,6 +276,7 @@ type Mutation {
     storage: String
     maxMsgs: Int
     maxBytes: Int
+    maxAge: Int
     replicas: Int
   ): StreamInfo!
 
@@ -284,7 +289,7 @@ type Mutation {
   Optionally, the stream can also listen on its own subjects.
   - sources: list of source streams to aggregate from
   - subjects: optional own subjects (e.g. ["local.>"])
-  - retention, storage, maxMsgs, maxBytes, replicas: same as streamCreate
+  - retention, storage, maxMsgs, maxBytes, maxAge, replicas: same as streamCreate
   """
   streamCopy(
     name: String!
@@ -294,6 +299,7 @@ type Mutation {
     storage: String
     maxMsgs: Int
     maxBytes: Int
+    maxAge: Int
     replicas: Int
   ): StreamInfo!
 

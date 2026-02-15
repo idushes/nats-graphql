@@ -105,6 +105,8 @@ type StreamInfo struct {
 	MaxMsgs int `json:"maxMsgs"`
 	// Maximum total size of messages in the stream in bytes. -1 means unlimited
 	MaxBytes int `json:"maxBytes"`
+	// Maximum age of messages in the stream in seconds. 0 means no age limit
+	MaxAge int `json:"maxAge"`
 	// Storage type: File (persistent to disk) or Memory (in-memory only)
 	Storage string `json:"storage"`
 	// Number of stream replicas for high availability in a NATS cluster
