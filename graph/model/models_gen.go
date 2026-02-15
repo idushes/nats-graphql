@@ -2,6 +2,49 @@
 
 package model
 
+// NATS JetStream consumer information.
+// Represents metadata about a consumer including its configuration and current runtime state.
+type ConsumerInfo struct {
+	// Name of the stream the consumer is bound to
+	Stream string `json:"stream"`
+	// Unique name of the consumer
+	Name string `json:"name"`
+	// Consumer creation timestamp in RFC3339 format
+	Created string `json:"created"`
+	// Optional human-readable description
+	Description *string `json:"description,omitempty"`
+	// Durable name (if set). Durable consumers survive client disconnections
+	DurableName *string `json:"durableName,omitempty"`
+	// Single subject filter (exclusive with filterSubjects)
+	FilterSubject *string `json:"filterSubject,omitempty"`
+	// Multiple subject filters (exclusive with filterSubject)
+	FilterSubjects []string `json:"filterSubjects,omitempty"`
+	// Message delivery policy: all, last, new, by_start_sequence, by_start_time, last_per_subject
+	DeliverPolicy string `json:"deliverPolicy"`
+	// Acknowledgement policy: explicit, all, none
+	AckPolicy string `json:"ackPolicy"`
+	// Time in nanoseconds the server waits for an ack before redelivery
+	AckWait int `json:"ackWait"`
+	// Maximum number of delivery attempts per message. -1 means unlimited
+	MaxDeliver int `json:"maxDeliver"`
+	// Maximum number of outstanding unacknowledged messages. -1 means unlimited
+	MaxAckPending int `json:"maxAckPending"`
+	// Number of replicas for the consumer state
+	Replicas int `json:"replicas"`
+	// Number of messages delivered but not yet acknowledged
+	NumAckPending int `json:"numAckPending"`
+	// Number of messages that have been redelivered and not yet acknowledged
+	NumRedelivered int `json:"numRedelivered"`
+	// Number of active pull requests waiting (pull consumers only)
+	NumWaiting int `json:"numWaiting"`
+	// Number of messages matching filter but not yet delivered
+	NumPending int `json:"numPending"`
+	// Whether the consumer is currently paused
+	Paused bool `json:"paused"`
+	// Time remaining until the consumer unpauses, in nanoseconds. Null if not paused
+	PauseRemaining *int `json:"pauseRemaining,omitempty"`
+}
+
 // Single key-value entry from a KV bucket.
 type KVEntry struct {
 	// Key name

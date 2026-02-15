@@ -132,6 +132,69 @@ type PublishResult {
   sequence: Int!
 }
 
+"""
+NATS JetStream consumer information.
+Represents metadata about a consumer including its configuration and current runtime state.
+"""
+type ConsumerInfo {
+  "Name of the stream the consumer is bound to"
+  stream: String!
+
+  "Unique name of the consumer"
+  name: String!
+
+  "Consumer creation timestamp in RFC3339 format"
+  created: String!
+
+  "Optional human-readable description"
+  description: String
+
+  "Durable name (if set). Durable consumers survive client disconnections"
+  durableName: String
+
+  "Single subject filter (exclusive with filterSubjects)"
+  filterSubject: String
+
+  "Multiple subject filters (exclusive with filterSubject)"
+  filterSubjects: [String!]
+
+  "Message delivery policy: all, last, new, by_start_sequence, by_start_time, last_per_subject"
+  deliverPolicy: String!
+
+  "Acknowledgement policy: explicit, all, none"
+  ackPolicy: String!
+
+  "Time in nanoseconds the server waits for an ack before redelivery"
+  ackWait: Int!
+
+  "Maximum number of delivery attempts per message. -1 means unlimited"
+  maxDeliver: Int!
+
+  "Maximum number of outstanding unacknowledged messages. -1 means unlimited"
+  maxAckPending: Int!
+
+  "Number of replicas for the consumer state"
+  replicas: Int!
+
+  "Number of messages delivered but not yet acknowledged"
+  numAckPending: Int!
+
+  "Number of messages that have been redelivered and not yet acknowledged"
+  numRedelivered: Int!
+
+  "Number of active pull requests waiting (pull consumers only)"
+  numWaiting: Int!
+
+  "Number of messages matching filter but not yet delivered"
+  numPending: Int!
+
+  "Whether the consumer is currently paused"
+  paused: Boolean!
+
+  "Time remaining until the consumer unpauses, in nanoseconds. Null if not paused"
+  pauseRemaining: Int
+}
+
 type Query {
   "List all Key-Value stores in NATS JetStream with their configuration and state"
   keyValues: [KeyValue!]!
@@ -164,6 +227,12 @@ type Query {
     endTime: String
     subject: String
   ): [StreamMessage!]!
+
+  "List all consumers on a stream"
+  consumers(stream: String!): [ConsumerInfo!]!
+
+  "Get info about a specific consumer. Returns null if not found"
+  consumerInfo(stream: String!, name: String!): ConsumerInfo
 }
 
 type Mutation {
@@ -237,6 +306,45 @@ type Mutation {
   Note: scheduled messages are lost if the server restarts before delivery.
   """
   publishScheduled(subject: String!, data: String!, delay: Int!): Boolean!
+
+  """
+  Create or update a durable pull consumer on a stream.
+  - name: consumer name (required)
+  - filterSubject: single subject filter
+  - filterSubjects: multiple subject filters (exclusive with filterSubject)
+  - deliverPolicy: "all" (default), "last", "new", "last_per_subject"
+  - ackPolicy: "explicit" (default), "all", "none"
+  - ackWait: ack timeout in seconds (default 30)
+  - maxDeliver: max delivery attempts (-1 = unlimited, default)
+  - maxAckPending: max unacked messages (default 1000, -1 = unlimited)
+  - replicas: number of replicas (default: inherits from stream)
+  - description: optional description
+  """
+  consumerCreate(
+    stream: String!
+    name: String!
+    filterSubject: String
+    filterSubjects: [String!]
+    deliverPolicy: String
+    ackPolicy: String
+    ackWait: Int
+    maxDeliver: Int
+    maxAckPending: Int
+    replicas: Int
+    description: String
+  ): ConsumerInfo!
+
+  "Delete a consumer. Returns true if successful"
+  consumerDelete(stream: String!, name: String!): Boolean!
+
+  """
+  Pause a consumer until the specified time (RFC3339 format).
+  The consumer will stop delivering messages until the pause expires.
+  """
+  consumerPause(stream: String!, name: String!, pauseUntil: String!): Boolean!
+
+  "Resume a paused consumer immediately"
+  consumerResume(stream: String!, name: String!): Boolean!
 }
 
 """

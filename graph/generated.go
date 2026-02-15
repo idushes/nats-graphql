@@ -48,6 +48,28 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ConsumerInfo struct {
+		AckPolicy      func(childComplexity int) int
+		AckWait        func(childComplexity int) int
+		Created        func(childComplexity int) int
+		DeliverPolicy  func(childComplexity int) int
+		Description    func(childComplexity int) int
+		DurableName    func(childComplexity int) int
+		FilterSubject  func(childComplexity int) int
+		FilterSubjects func(childComplexity int) int
+		MaxAckPending  func(childComplexity int) int
+		MaxDeliver     func(childComplexity int) int
+		Name           func(childComplexity int) int
+		NumAckPending  func(childComplexity int) int
+		NumPending     func(childComplexity int) int
+		NumRedelivered func(childComplexity int) int
+		NumWaiting     func(childComplexity int) int
+		PauseRemaining func(childComplexity int) int
+		Paused         func(childComplexity int) int
+		Replicas       func(childComplexity int) int
+		Stream         func(childComplexity int) int
+	}
+
 	KVEntry struct {
 		Created  func(childComplexity int) int
 		Key      func(childComplexity int) int
@@ -66,6 +88,10 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		ConsumerCreate   func(childComplexity int, stream string, name string, filterSubject *string, filterSubjects []string, deliverPolicy *string, ackPolicy *string, ackWait *int, maxDeliver *int, maxAckPending *int, replicas *int, description *string) int
+		ConsumerDelete   func(childComplexity int, stream string, name string) int
+		ConsumerPause    func(childComplexity int, stream string, name string, pauseUntil string) int
+		ConsumerResume   func(childComplexity int, stream string, name string) int
 		KvCreate         func(childComplexity int, bucket string, history *int, ttl *int, storage *string) int
 		KvDelete         func(childComplexity int, bucket string, key string) int
 		KvDeleteBucket   func(childComplexity int, bucket string) int
@@ -84,6 +110,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		ConsumerInfo   func(childComplexity int, stream string, name string) int
+		Consumers      func(childComplexity int, stream string) int
 		KeyValues      func(childComplexity int) int
 		KvGet          func(childComplexity int, bucket string, key string) int
 		KvKeys         func(childComplexity int, bucket string) int
@@ -137,6 +165,10 @@ type MutationResolver interface {
 	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, replicas *int) (*model.StreamInfo, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
 	PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error)
+	ConsumerCreate(ctx context.Context, stream string, name string, filterSubject *string, filterSubjects []string, deliverPolicy *string, ackPolicy *string, ackWait *int, maxDeliver *int, maxAckPending *int, replicas *int, description *string) (*model.ConsumerInfo, error)
+	ConsumerDelete(ctx context.Context, stream string, name string) (bool, error)
+	ConsumerPause(ctx context.Context, stream string, name string, pauseUntil string) (bool, error)
+	ConsumerResume(ctx context.Context, stream string, name string) (bool, error)
 }
 type QueryResolver interface {
 	KeyValues(ctx context.Context) ([]*model.KeyValue, error)
@@ -144,6 +176,8 @@ type QueryResolver interface {
 	KvKeys(ctx context.Context, bucket string) ([]string, error)
 	KvGet(ctx context.Context, bucket string, key string) (*model.KVEntry, error)
 	StreamMessages(ctx context.Context, stream string, last int, startSeq *int, startTime *string, endTime *string, subject *string) ([]*model.StreamMessage, error)
+	Consumers(ctx context.Context, stream string) ([]*model.ConsumerInfo, error)
+	ConsumerInfo(ctx context.Context, stream string, name string) (*model.ConsumerInfo, error)
 }
 type SubscriptionResolver interface {
 	StreamSubscribe(ctx context.Context, stream string, subject *string) (<-chan *model.StreamMessage, error)
@@ -167,6 +201,121 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "ConsumerInfo.ackPolicy":
+		if e.complexity.ConsumerInfo.AckPolicy == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.AckPolicy(childComplexity), true
+	case "ConsumerInfo.ackWait":
+		if e.complexity.ConsumerInfo.AckWait == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.AckWait(childComplexity), true
+	case "ConsumerInfo.created":
+		if e.complexity.ConsumerInfo.Created == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Created(childComplexity), true
+	case "ConsumerInfo.deliverPolicy":
+		if e.complexity.ConsumerInfo.DeliverPolicy == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.DeliverPolicy(childComplexity), true
+	case "ConsumerInfo.description":
+		if e.complexity.ConsumerInfo.Description == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Description(childComplexity), true
+	case "ConsumerInfo.durableName":
+		if e.complexity.ConsumerInfo.DurableName == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.DurableName(childComplexity), true
+	case "ConsumerInfo.filterSubject":
+		if e.complexity.ConsumerInfo.FilterSubject == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.FilterSubject(childComplexity), true
+	case "ConsumerInfo.filterSubjects":
+		if e.complexity.ConsumerInfo.FilterSubjects == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.FilterSubjects(childComplexity), true
+	case "ConsumerInfo.maxAckPending":
+		if e.complexity.ConsumerInfo.MaxAckPending == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.MaxAckPending(childComplexity), true
+	case "ConsumerInfo.maxDeliver":
+		if e.complexity.ConsumerInfo.MaxDeliver == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.MaxDeliver(childComplexity), true
+	case "ConsumerInfo.name":
+		if e.complexity.ConsumerInfo.Name == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Name(childComplexity), true
+	case "ConsumerInfo.numAckPending":
+		if e.complexity.ConsumerInfo.NumAckPending == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.NumAckPending(childComplexity), true
+	case "ConsumerInfo.numPending":
+		if e.complexity.ConsumerInfo.NumPending == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.NumPending(childComplexity), true
+	case "ConsumerInfo.numRedelivered":
+		if e.complexity.ConsumerInfo.NumRedelivered == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.NumRedelivered(childComplexity), true
+	case "ConsumerInfo.numWaiting":
+		if e.complexity.ConsumerInfo.NumWaiting == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.NumWaiting(childComplexity), true
+	case "ConsumerInfo.pauseRemaining":
+		if e.complexity.ConsumerInfo.PauseRemaining == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.PauseRemaining(childComplexity), true
+	case "ConsumerInfo.paused":
+		if e.complexity.ConsumerInfo.Paused == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Paused(childComplexity), true
+	case "ConsumerInfo.replicas":
+		if e.complexity.ConsumerInfo.Replicas == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Replicas(childComplexity), true
+	case "ConsumerInfo.stream":
+		if e.complexity.ConsumerInfo.Stream == nil {
+			break
+		}
+
+		return e.complexity.ConsumerInfo.Stream(childComplexity), true
 
 	case "KVEntry.created":
 		if e.complexity.KVEntry.Created == nil {
@@ -236,6 +385,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeyValue.Values(childComplexity), true
 
+	case "Mutation.consumerCreate":
+		if e.complexity.Mutation.ConsumerCreate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_consumerCreate_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConsumerCreate(childComplexity, args["stream"].(string), args["name"].(string), args["filterSubject"].(*string), args["filterSubjects"].([]string), args["deliverPolicy"].(*string), args["ackPolicy"].(*string), args["ackWait"].(*int), args["maxDeliver"].(*int), args["maxAckPending"].(*int), args["replicas"].(*int), args["description"].(*string)), true
+	case "Mutation.consumerDelete":
+		if e.complexity.Mutation.ConsumerDelete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_consumerDelete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConsumerDelete(childComplexity, args["stream"].(string), args["name"].(string)), true
+	case "Mutation.consumerPause":
+		if e.complexity.Mutation.ConsumerPause == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_consumerPause_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConsumerPause(childComplexity, args["stream"].(string), args["name"].(string), args["pauseUntil"].(string)), true
+	case "Mutation.consumerResume":
+		if e.complexity.Mutation.ConsumerResume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_consumerResume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConsumerResume(childComplexity, args["stream"].(string), args["name"].(string)), true
 	case "Mutation.kvCreate":
 		if e.complexity.Mutation.KvCreate == nil {
 			break
@@ -360,6 +553,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PublishResult.Stream(childComplexity), true
 
+	case "Query.consumerInfo":
+		if e.complexity.Query.ConsumerInfo == nil {
+			break
+		}
+
+		args, err := ec.field_Query_consumerInfo_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ConsumerInfo(childComplexity, args["stream"].(string), args["name"].(string)), true
+	case "Query.consumers":
+		if e.complexity.Query.Consumers == nil {
+			break
+		}
+
+		args, err := ec.field_Query_consumers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Consumers(childComplexity, args["stream"].(string)), true
 	case "Query.keyValues":
 		if e.complexity.Query.KeyValues == nil {
 			break
@@ -689,6 +904,120 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_consumerCreate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "filterSubject", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["filterSubject"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "filterSubjects", ec.unmarshalOString2ᚕstringᚄ)
+	if err != nil {
+		return nil, err
+	}
+	args["filterSubjects"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "deliverPolicy", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["deliverPolicy"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "ackPolicy", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["ackPolicy"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "ackWait", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["ackWait"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "maxDeliver", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxDeliver"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "maxAckPending", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["maxAckPending"] = arg8
+	arg9, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg9
+	arg10, err := graphql.ProcessArgField(ctx, rawArgs, "description", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["description"] = arg10
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_consumerDelete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_consumerPause_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "pauseUntil", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["pauseUntil"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_consumerResume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_kvCreate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -925,6 +1254,33 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_consumerInfo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_consumers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "stream", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["stream"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_kvGet_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1055,6 +1411,557 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ConsumerInfo_stream(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_stream,
+		func(ctx context.Context) (any, error) {
+			return obj.Stream, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_stream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_created(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_created,
+		func(ctx context.Context) (any, error) {
+			return obj.Created, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_created(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_description(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_durableName(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_durableName,
+		func(ctx context.Context) (any, error) {
+			return obj.DurableName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_durableName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_filterSubject(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_filterSubject,
+		func(ctx context.Context) (any, error) {
+			return obj.FilterSubject, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_filterSubject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_filterSubjects(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_filterSubjects,
+		func(ctx context.Context) (any, error) {
+			return obj.FilterSubjects, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_filterSubjects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_deliverPolicy(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_deliverPolicy,
+		func(ctx context.Context) (any, error) {
+			return obj.DeliverPolicy, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_deliverPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_ackPolicy(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_ackPolicy,
+		func(ctx context.Context) (any, error) {
+			return obj.AckPolicy, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_ackPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_ackWait(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_ackWait,
+		func(ctx context.Context) (any, error) {
+			return obj.AckWait, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_ackWait(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_maxDeliver(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_maxDeliver,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxDeliver, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_maxDeliver(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_maxAckPending(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_maxAckPending,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxAckPending, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_maxAckPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_replicas(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_replicas,
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_numAckPending(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_numAckPending,
+		func(ctx context.Context) (any, error) {
+			return obj.NumAckPending, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_numAckPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_numRedelivered(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_numRedelivered,
+		func(ctx context.Context) (any, error) {
+			return obj.NumRedelivered, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_numRedelivered(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_numWaiting(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_numWaiting,
+		func(ctx context.Context) (any, error) {
+			return obj.NumWaiting, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_numWaiting(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_numPending(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_numPending,
+		func(ctx context.Context) (any, error) {
+			return obj.NumPending, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_numPending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_paused(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_paused,
+		func(ctx context.Context) (any, error) {
+			return obj.Paused, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_paused(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConsumerInfo_pauseRemaining(ctx context.Context, field graphql.CollectedField, obj *model.ConsumerInfo) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConsumerInfo_pauseRemaining,
+		func(ctx context.Context) (any, error) {
+			return obj.PauseRemaining, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConsumerInfo_pauseRemaining(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConsumerInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _KVEntry_key(ctx context.Context, field graphql.CollectedField, obj *model.KVEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -1873,6 +2780,210 @@ func (ec *executionContext) fieldContext_Mutation_publishScheduled(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_consumerCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_consumerCreate,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConsumerCreate(ctx, fc.Args["stream"].(string), fc.Args["name"].(string), fc.Args["filterSubject"].(*string), fc.Args["filterSubjects"].([]string), fc.Args["deliverPolicy"].(*string), fc.Args["ackPolicy"].(*string), fc.Args["ackWait"].(*int), fc.Args["maxDeliver"].(*int), fc.Args["maxAckPending"].(*int), fc.Args["replicas"].(*int), fc.Args["description"].(*string))
+		},
+		nil,
+		ec.marshalNConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_consumerCreate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stream":
+				return ec.fieldContext_ConsumerInfo_stream(ctx, field)
+			case "name":
+				return ec.fieldContext_ConsumerInfo_name(ctx, field)
+			case "created":
+				return ec.fieldContext_ConsumerInfo_created(ctx, field)
+			case "description":
+				return ec.fieldContext_ConsumerInfo_description(ctx, field)
+			case "durableName":
+				return ec.fieldContext_ConsumerInfo_durableName(ctx, field)
+			case "filterSubject":
+				return ec.fieldContext_ConsumerInfo_filterSubject(ctx, field)
+			case "filterSubjects":
+				return ec.fieldContext_ConsumerInfo_filterSubjects(ctx, field)
+			case "deliverPolicy":
+				return ec.fieldContext_ConsumerInfo_deliverPolicy(ctx, field)
+			case "ackPolicy":
+				return ec.fieldContext_ConsumerInfo_ackPolicy(ctx, field)
+			case "ackWait":
+				return ec.fieldContext_ConsumerInfo_ackWait(ctx, field)
+			case "maxDeliver":
+				return ec.fieldContext_ConsumerInfo_maxDeliver(ctx, field)
+			case "maxAckPending":
+				return ec.fieldContext_ConsumerInfo_maxAckPending(ctx, field)
+			case "replicas":
+				return ec.fieldContext_ConsumerInfo_replicas(ctx, field)
+			case "numAckPending":
+				return ec.fieldContext_ConsumerInfo_numAckPending(ctx, field)
+			case "numRedelivered":
+				return ec.fieldContext_ConsumerInfo_numRedelivered(ctx, field)
+			case "numWaiting":
+				return ec.fieldContext_ConsumerInfo_numWaiting(ctx, field)
+			case "numPending":
+				return ec.fieldContext_ConsumerInfo_numPending(ctx, field)
+			case "paused":
+				return ec.fieldContext_ConsumerInfo_paused(ctx, field)
+			case "pauseRemaining":
+				return ec.fieldContext_ConsumerInfo_pauseRemaining(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumerInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_consumerCreate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_consumerDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_consumerDelete,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConsumerDelete(ctx, fc.Args["stream"].(string), fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_consumerDelete(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_consumerDelete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_consumerPause(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_consumerPause,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConsumerPause(ctx, fc.Args["stream"].(string), fc.Args["name"].(string), fc.Args["pauseUntil"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_consumerPause(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_consumerPause_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_consumerResume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_consumerResume,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConsumerResume(ctx, fc.Args["stream"].(string), fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_consumerResume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_consumerResume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PublishResult_stream(ctx context.Context, field graphql.CollectedField, obj *model.PublishResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2170,6 +3281,168 @@ func (ec *executionContext) fieldContext_Query_streamMessages(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_streamMessages_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_consumers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_consumers,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().Consumers(ctx, fc.Args["stream"].(string))
+		},
+		nil,
+		ec.marshalNConsumerInfo2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfoᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_consumers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stream":
+				return ec.fieldContext_ConsumerInfo_stream(ctx, field)
+			case "name":
+				return ec.fieldContext_ConsumerInfo_name(ctx, field)
+			case "created":
+				return ec.fieldContext_ConsumerInfo_created(ctx, field)
+			case "description":
+				return ec.fieldContext_ConsumerInfo_description(ctx, field)
+			case "durableName":
+				return ec.fieldContext_ConsumerInfo_durableName(ctx, field)
+			case "filterSubject":
+				return ec.fieldContext_ConsumerInfo_filterSubject(ctx, field)
+			case "filterSubjects":
+				return ec.fieldContext_ConsumerInfo_filterSubjects(ctx, field)
+			case "deliverPolicy":
+				return ec.fieldContext_ConsumerInfo_deliverPolicy(ctx, field)
+			case "ackPolicy":
+				return ec.fieldContext_ConsumerInfo_ackPolicy(ctx, field)
+			case "ackWait":
+				return ec.fieldContext_ConsumerInfo_ackWait(ctx, field)
+			case "maxDeliver":
+				return ec.fieldContext_ConsumerInfo_maxDeliver(ctx, field)
+			case "maxAckPending":
+				return ec.fieldContext_ConsumerInfo_maxAckPending(ctx, field)
+			case "replicas":
+				return ec.fieldContext_ConsumerInfo_replicas(ctx, field)
+			case "numAckPending":
+				return ec.fieldContext_ConsumerInfo_numAckPending(ctx, field)
+			case "numRedelivered":
+				return ec.fieldContext_ConsumerInfo_numRedelivered(ctx, field)
+			case "numWaiting":
+				return ec.fieldContext_ConsumerInfo_numWaiting(ctx, field)
+			case "numPending":
+				return ec.fieldContext_ConsumerInfo_numPending(ctx, field)
+			case "paused":
+				return ec.fieldContext_ConsumerInfo_paused(ctx, field)
+			case "pauseRemaining":
+				return ec.fieldContext_ConsumerInfo_pauseRemaining(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumerInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_consumers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_consumerInfo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_consumerInfo,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ConsumerInfo(ctx, fc.Args["stream"].(string), fc.Args["name"].(string))
+		},
+		nil,
+		ec.marshalOConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_consumerInfo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stream":
+				return ec.fieldContext_ConsumerInfo_stream(ctx, field)
+			case "name":
+				return ec.fieldContext_ConsumerInfo_name(ctx, field)
+			case "created":
+				return ec.fieldContext_ConsumerInfo_created(ctx, field)
+			case "description":
+				return ec.fieldContext_ConsumerInfo_description(ctx, field)
+			case "durableName":
+				return ec.fieldContext_ConsumerInfo_durableName(ctx, field)
+			case "filterSubject":
+				return ec.fieldContext_ConsumerInfo_filterSubject(ctx, field)
+			case "filterSubjects":
+				return ec.fieldContext_ConsumerInfo_filterSubjects(ctx, field)
+			case "deliverPolicy":
+				return ec.fieldContext_ConsumerInfo_deliverPolicy(ctx, field)
+			case "ackPolicy":
+				return ec.fieldContext_ConsumerInfo_ackPolicy(ctx, field)
+			case "ackWait":
+				return ec.fieldContext_ConsumerInfo_ackWait(ctx, field)
+			case "maxDeliver":
+				return ec.fieldContext_ConsumerInfo_maxDeliver(ctx, field)
+			case "maxAckPending":
+				return ec.fieldContext_ConsumerInfo_maxAckPending(ctx, field)
+			case "replicas":
+				return ec.fieldContext_ConsumerInfo_replicas(ctx, field)
+			case "numAckPending":
+				return ec.fieldContext_ConsumerInfo_numAckPending(ctx, field)
+			case "numRedelivered":
+				return ec.fieldContext_ConsumerInfo_numRedelivered(ctx, field)
+			case "numWaiting":
+				return ec.fieldContext_ConsumerInfo_numWaiting(ctx, field)
+			case "numPending":
+				return ec.fieldContext_ConsumerInfo_numPending(ctx, field)
+			case "paused":
+				return ec.fieldContext_ConsumerInfo_paused(ctx, field)
+			case "pauseRemaining":
+				return ec.fieldContext_ConsumerInfo_pauseRemaining(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConsumerInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_consumerInfo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4442,6 +5715,120 @@ func (ec *executionContext) unmarshalInputStreamSourceInput(ctx context.Context,
 
 // region    **************************** object.gotpl ****************************
 
+var consumerInfoImplementors = []string{"ConsumerInfo"}
+
+func (ec *executionContext) _ConsumerInfo(ctx context.Context, sel ast.SelectionSet, obj *model.ConsumerInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, consumerInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConsumerInfo")
+		case "stream":
+			out.Values[i] = ec._ConsumerInfo_stream(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ConsumerInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "created":
+			out.Values[i] = ec._ConsumerInfo_created(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._ConsumerInfo_description(ctx, field, obj)
+		case "durableName":
+			out.Values[i] = ec._ConsumerInfo_durableName(ctx, field, obj)
+		case "filterSubject":
+			out.Values[i] = ec._ConsumerInfo_filterSubject(ctx, field, obj)
+		case "filterSubjects":
+			out.Values[i] = ec._ConsumerInfo_filterSubjects(ctx, field, obj)
+		case "deliverPolicy":
+			out.Values[i] = ec._ConsumerInfo_deliverPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackPolicy":
+			out.Values[i] = ec._ConsumerInfo_ackPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ackWait":
+			out.Values[i] = ec._ConsumerInfo_ackWait(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxDeliver":
+			out.Values[i] = ec._ConsumerInfo_maxDeliver(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxAckPending":
+			out.Values[i] = ec._ConsumerInfo_maxAckPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replicas":
+			out.Values[i] = ec._ConsumerInfo_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "numAckPending":
+			out.Values[i] = ec._ConsumerInfo_numAckPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "numRedelivered":
+			out.Values[i] = ec._ConsumerInfo_numRedelivered(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "numWaiting":
+			out.Values[i] = ec._ConsumerInfo_numWaiting(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "numPending":
+			out.Values[i] = ec._ConsumerInfo_numPending(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "paused":
+			out.Values[i] = ec._ConsumerInfo_paused(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pauseRemaining":
+			out.Values[i] = ec._ConsumerInfo_pauseRemaining(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var kVEntryImplementors = []string{"KVEntry"}
 
 func (ec *executionContext) _KVEntry(ctx context.Context, sel ast.SelectionSet, obj *model.KVEntry) graphql.Marshaler {
@@ -4654,6 +6041,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "consumerCreate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_consumerCreate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumerDelete":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_consumerDelete(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumerPause":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_consumerPause(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumerResume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_consumerResume(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4838,6 +6253,47 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "consumers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_consumers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "consumerInfo":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_consumerInfo(ctx, field)
 				return res
 			}
 
@@ -5450,6 +6906,64 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNConsumerInfo2natsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo(ctx context.Context, sel ast.SelectionSet, v model.ConsumerInfo) graphql.Marshaler {
+	return ec._ConsumerInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConsumerInfo2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ConsumerInfo) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo(ctx context.Context, sel ast.SelectionSet, v *model.ConsumerInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConsumerInfo(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6025,6 +7539,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐConsumerInfo(ctx context.Context, sel ast.SelectionSet, v *model.ConsumerInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ConsumerInfo(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

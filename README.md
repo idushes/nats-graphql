@@ -29,6 +29,15 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 - `publish` — publish a message to any subject (max 1MB)
 - `publishScheduled` — delayed publish after N seconds (fire-and-forget)
 
+**Consumers**
+
+- `consumers` — list all consumers on a stream
+- `consumerInfo` — get detailed info about a specific consumer
+- `consumerCreate` — create or update a durable pull consumer (filterSubject, deliverPolicy, ackPolicy, etc.)
+- `consumerDelete` — delete a consumer
+- `consumerPause` — pause a consumer until a specified time
+- `consumerResume` — resume a paused consumer
+
 **Subscriptions (WebSocket)**
 
 - `streamSubscribe` — real-time message streaming via `graphql-transport-ws`
@@ -259,6 +268,72 @@ subscription {
 ```
 
 Subscriptions use the `graphql-transport-ws` WebSocket protocol. The optional `subject` parameter filters messages by subject pattern.
+
+**List consumers on a stream:**
+
+```graphql
+{
+  consumers(stream: "my-stream") {
+    name
+    stream
+    deliverPolicy
+    ackPolicy
+    numPending
+    numAckPending
+    paused
+  }
+}
+```
+
+**Create a consumer (mutation):**
+
+```graphql
+mutation {
+  consumerCreate(
+    stream: "my-stream"
+    name: "my-consumer"
+    filterSubject: "orders.>"
+    deliverPolicy: "new"
+    ackPolicy: "explicit"
+    maxDeliver: 5
+    description: "Process new orders"
+  ) {
+    name
+    stream
+    deliverPolicy
+    ackPolicy
+    maxDeliver
+  }
+}
+```
+
+**Pause a consumer (mutation):**
+
+```graphql
+mutation {
+  consumerPause(
+    stream: "my-stream"
+    name: "my-consumer"
+    pauseUntil: "2026-02-15T14:00:00Z"
+  )
+}
+```
+
+**Resume a consumer (mutation):**
+
+```graphql
+mutation {
+  consumerResume(stream: "my-stream", name: "my-consumer")
+}
+```
+
+**Delete a consumer (mutation):**
+
+```graphql
+mutation {
+  consumerDelete(stream: "my-stream", name: "my-consumer")
+}
+```
 
 ### Safety Limits
 

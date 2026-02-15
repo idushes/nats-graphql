@@ -302,6 +302,104 @@ func (r *mutationResolver) PublishScheduled(ctx context.Context, subject string,
 	return true, nil
 }
 
+// ConsumerCreate is the resolver for the consumerCreate field.
+func (r *mutationResolver) ConsumerCreate(ctx context.Context, stream string, name string, filterSubject *string, filterSubjects []string, deliverPolicy *string, ackPolicy *string, ackWait *int, maxDeliver *int, maxAckPending *int, replicas *int, description *string) (*model.ConsumerInfo, error) {
+	cfg := jetstream.ConsumerConfig{
+		Name:    name,
+		Durable: name,
+	}
+
+	if filterSubject != nil && *filterSubject != "" {
+		cfg.FilterSubject = *filterSubject
+	}
+	if len(filterSubjects) > 0 {
+		cfg.FilterSubjects = filterSubjects
+	}
+
+	if deliverPolicy != nil {
+		switch *deliverPolicy {
+		case "last":
+			cfg.DeliverPolicy = jetstream.DeliverLastPolicy
+		case "new":
+			cfg.DeliverPolicy = jetstream.DeliverNewPolicy
+		case "last_per_subject":
+			cfg.DeliverPolicy = jetstream.DeliverLastPerSubjectPolicy
+		default:
+			cfg.DeliverPolicy = jetstream.DeliverAllPolicy
+		}
+	}
+
+	if ackPolicy != nil {
+		switch *ackPolicy {
+		case "none":
+			cfg.AckPolicy = jetstream.AckNonePolicy
+		case "all":
+			cfg.AckPolicy = jetstream.AckAllPolicy
+		default:
+			cfg.AckPolicy = jetstream.AckExplicitPolicy
+		}
+	}
+
+	if ackWait != nil {
+		cfg.AckWait = time.Duration(*ackWait) * time.Second
+	}
+	if maxDeliver != nil {
+		cfg.MaxDeliver = *maxDeliver
+	}
+	if maxAckPending != nil {
+		cfg.MaxAckPending = *maxAckPending
+	}
+	if replicas != nil {
+		cfg.Replicas = *replicas
+	}
+	if description != nil {
+		cfg.Description = *description
+	}
+
+	cons, err := r.JS.CreateOrUpdateConsumer(ctx, stream, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	ci, err := cons.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapConsumerInfo(ci), nil
+}
+
+// ConsumerDelete is the resolver for the consumerDelete field.
+func (r *mutationResolver) ConsumerDelete(ctx context.Context, stream string, name string) (bool, error) {
+	err := r.JS.DeleteConsumer(ctx, stream, name)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ConsumerPause is the resolver for the consumerPause field.
+func (r *mutationResolver) ConsumerPause(ctx context.Context, stream string, name string, pauseUntil string) (bool, error) {
+	t, err := parseRFC3339(pauseUntil)
+	if err != nil {
+		return false, fmt.Errorf("invalid pauseUntil format (expected RFC3339): %w", err)
+	}
+	_, err = r.JS.PauseConsumer(ctx, stream, name, t)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ConsumerResume is the resolver for the consumerResume field.
+func (r *mutationResolver) ConsumerResume(ctx context.Context, stream string, name string) (bool, error) {
+	_, err := r.JS.ResumeConsumer(ctx, stream, name)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // KeyValues is the resolver for the keyValues field.
 func (r *queryResolver) KeyValues(ctx context.Context) ([]*model.KeyValue, error) {
 	var result []*model.KeyValue
@@ -540,6 +638,45 @@ loop:
 	}
 
 	return result, nil
+}
+
+// Consumers is the resolver for the consumers field.
+func (r *queryResolver) Consumers(ctx context.Context, stream string) ([]*model.ConsumerInfo, error) {
+	s, err := r.JS.Stream(ctx, stream)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*model.ConsumerInfo
+
+	lister := s.ListConsumers(ctx)
+	for ci := range lister.Info() {
+		result = append(result, mapConsumerInfo(ci))
+	}
+
+	if err := lister.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// ConsumerInfo is the resolver for the consumerInfo field.
+func (r *queryResolver) ConsumerInfo(ctx context.Context, stream string, name string) (*model.ConsumerInfo, error) {
+	cons, err := r.JS.Consumer(ctx, stream, name)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrConsumerNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	ci, err := cons.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapConsumerInfo(ci), nil
 }
 
 // StreamSubscribe is the resolver for the streamSubscribe field.
