@@ -260,6 +260,15 @@ type Mutation {
   kvDeleteBucket(bucket: String!): Boolean!
 
   """
+  Update an existing KV bucket configuration. Returns the updated bucket info.
+  Only the provided fields will be changed; omitted fields retain their current values.
+  Note: storage type cannot be changed after creation.
+  - history: max history entries per key
+  - ttl: key expiration in seconds (0 = no expiry)
+  """
+  kvUpdate(bucket: String!, history: Int, ttl: Int): KeyValue!
+
+  """
   Create a new stream. Returns the created stream info.
   - subjects: subject filters (e.g. ["orders.>"])
   - retention: "limits" (default), "interest", or "workqueue"
@@ -282,6 +291,25 @@ type Mutation {
 
   "Delete a stream. Returns true if successful"
   streamDelete(name: String!): Boolean!
+
+  """
+  Update an existing stream configuration. Returns the updated stream info.
+  Only the provided fields will be changed; omitted fields retain their current values.
+  Note: retention and storage cannot be changed after creation.
+  - subjects: update subject filters
+  - maxMsgs: max messages (-1 = unlimited)
+  - maxBytes: max total bytes (-1 = unlimited)
+  - maxAge: max message age in seconds (0 = no limit)
+  - replicas: number of replicas
+  """
+  streamUpdate(
+    name: String!
+    subjects: [String!]
+    maxMsgs: Int
+    maxBytes: Int
+    maxAge: Int
+    replicas: Int
+  ): StreamInfo!
 
   """
   Create a new stream that aggregates (sources) messages from one or more existing streams.

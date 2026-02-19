@@ -104,6 +104,35 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Update stream settings (mutation)
+# Only provided fields will be changed
+#
+# mutation {
+#   streamUpdate(
+#     name: "my-stream"
+#     maxMsgs: 10000
+#     maxAge: 86400
+#   ) {
+#     name
+#     maxMsgs
+#     maxAge
+#     subjects
+#   }
+# }
+
+# -----------------------------------------------
+# Update KV bucket settings (mutation)
+# Only provided fields will be changed
+#
+# mutation {
+#   kvUpdate(bucket: "my-bucket", history: 10, ttl: 7200) {
+#     bucket
+#     history
+#     ttl
+#   }
+# }
+
+# -----------------------------------------------
 # Read last N messages from a stream (max 100)
 #
 # {

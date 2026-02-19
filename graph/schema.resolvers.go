@@ -120,6 +120,59 @@ func (r *mutationResolver) KvDeleteBucket(ctx context.Context, bucket string) (b
 	return true, nil
 }
 
+// KvUpdate is the resolver for the kvUpdate field.
+func (r *mutationResolver) KvUpdate(ctx context.Context, bucket string, history *int, ttl *int) (*model.KeyValue, error) {
+	kv, err := r.JS.KeyValue(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := kv.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := jetstream.KeyValueConfig{
+		Bucket:  bucket,
+		History: uint8(status.History()),
+		TTL:     status.TTL(),
+		Storage: jetstream.FileStorage,
+	}
+	if status.BackingStore() == "JetStream" || status.BackingStore() == "Memory" {
+		if status.BackingStore() == "Memory" {
+			cfg.Storage = jetstream.MemoryStorage
+		}
+	}
+
+	if history != nil {
+		cfg.History = uint8(*history)
+	}
+	if ttl != nil {
+		cfg.TTL = time.Duration(*ttl) * time.Second
+	}
+
+	updatedKV, err := r.JS.UpdateKeyValue(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	updatedStatus, err := updatedKV.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ttlSec := int(updatedStatus.TTL().Seconds())
+	return &model.KeyValue{
+		Bucket:       updatedStatus.Bucket(),
+		History:      int(updatedStatus.History()),
+		TTL:          ttlSec,
+		Storage:      updatedStatus.BackingStore(),
+		Bytes:        int(updatedStatus.Bytes()),
+		Values:       int(updatedStatus.Values()),
+		IsCompressed: updatedStatus.IsCompressed(),
+	}, nil
+}
+
 // StreamCreate is the resolver for the streamCreate field.
 func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	cfg := jetstream.StreamConfig{
@@ -187,6 +240,61 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 		return false, err
 	}
 	return true, nil
+}
+
+// StreamUpdate is the resolver for the streamUpdate field.
+func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjects []string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
+	s, err := r.JS.Stream(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	sInfo, err := s.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := sInfo.Config
+
+	if len(subjects) > 0 {
+		cfg.Subjects = subjects
+	}
+	if maxMsgs != nil {
+		cfg.MaxMsgs = int64(*maxMsgs)
+	}
+	if maxBytes != nil {
+		cfg.MaxBytes = int64(*maxBytes)
+	}
+	if maxAge != nil {
+		cfg.MaxAge = time.Duration(*maxAge) * time.Second
+	}
+	if replicas != nil {
+		cfg.Replicas = *replicas
+	}
+
+	si, err := r.JS.UpdateStream(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	info := si.CachedInfo()
+
+	return &model.StreamInfo{
+		Name:         info.Config.Name,
+		Subjects:     info.Config.Subjects,
+		Retention:    info.Config.Retention.String(),
+		MaxConsumers: info.Config.MaxConsumers,
+		MaxMsgs:      int(info.Config.MaxMsgs),
+		MaxBytes:     int(info.Config.MaxBytes),
+		MaxAge:       int(info.Config.MaxAge / time.Second),
+		Storage:      info.Config.Storage.String(),
+		Replicas:     info.Config.Replicas,
+		Messages:     int(info.State.Msgs),
+		Bytes:        int(info.State.Bytes),
+		Consumers:    info.State.Consumers,
+		Created:      info.Created.Format(time.RFC3339),
+		Sources:      mapSources(info.Sources),
+	}, nil
 }
 
 // StreamCopy is the resolver for the streamCopy field.
