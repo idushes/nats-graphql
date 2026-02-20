@@ -273,6 +273,7 @@ type Mutation {
   - subjects: subject filters (e.g. ["orders.>"])
   - retention: "limits" (default), "interest", or "workqueue"
   - storage: "file" (default) or "memory"
+  - maxConsumers: max consumers (-1 = unlimited, default)
   - maxMsgs: max messages (-1 = unlimited, default)
   - maxBytes: max total bytes (-1 = unlimited, default)
   - maxAge: max message age in seconds (0 = no limit, default)
@@ -283,6 +284,7 @@ type Mutation {
     subjects: [String!]!
     retention: String
     storage: String
+    maxConsumers: Int
     maxMsgs: Int
     maxBytes: Int
     maxAge: Int
@@ -297,6 +299,7 @@ type Mutation {
   Only the provided fields will be changed; omitted fields retain their current values.
   Note: retention and storage cannot be changed after creation.
   - subjects: update subject filters
+  - maxConsumers: max consumers (-1 = unlimited)
   - maxMsgs: max messages (-1 = unlimited)
   - maxBytes: max total bytes (-1 = unlimited)
   - maxAge: max message age in seconds (0 = no limit)
@@ -305,6 +308,7 @@ type Mutation {
   streamUpdate(
     name: String!
     subjects: [String!]
+    maxConsumers: Int
     maxMsgs: Int
     maxBytes: Int
     maxAge: Int
@@ -317,7 +321,7 @@ type Mutation {
   Optionally, the stream can also listen on its own subjects.
   - sources: list of source streams to aggregate from
   - subjects: optional own subjects (e.g. ["local.>"])
-  - retention, storage, maxMsgs, maxBytes, maxAge, replicas: same as streamCreate
+  - retention, storage, maxConsumers, maxMsgs, maxBytes, maxAge, replicas: same as streamCreate
   """
   streamCopy(
     name: String!
@@ -325,6 +329,7 @@ type Mutation {
     subjects: [String!]
     retention: String
     storage: String
+    maxConsumers: Int
     maxMsgs: Int
     maxBytes: Int
     maxAge: Int

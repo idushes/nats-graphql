@@ -174,7 +174,7 @@ func (r *mutationResolver) KvUpdate(ctx context.Context, bucket string, history 
 }
 
 // StreamCreate is the resolver for the streamCreate field.
-func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
+func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	cfg := jetstream.StreamConfig{
 		Name:     name,
 		Subjects: subjects,
@@ -195,6 +195,9 @@ func (r *mutationResolver) StreamCreate(ctx context.Context, name string, subjec
 		cfg.Storage = jetstream.MemoryStorage
 	}
 
+	if maxConsumers != nil {
+		cfg.MaxConsumers = *maxConsumers
+	}
 	if maxMsgs != nil {
 		cfg.MaxMsgs = int64(*maxMsgs)
 	}
@@ -243,7 +246,7 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 }
 
 // StreamUpdate is the resolver for the streamUpdate field.
-func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjects []string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
+func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	s, err := r.JS.Stream(ctx, name)
 	if err != nil {
 		return nil, err
@@ -258,6 +261,9 @@ func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjec
 
 	if len(subjects) > 0 {
 		cfg.Subjects = subjects
+	}
+	if maxConsumers != nil {
+		cfg.MaxConsumers = *maxConsumers
 	}
 	if maxMsgs != nil {
 		cfg.MaxMsgs = int64(*maxMsgs)
@@ -298,7 +304,7 @@ func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjec
 }
 
 // StreamCopy is the resolver for the streamCopy field.
-func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
+func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	if len(sources) == 0 {
 		return nil, fmt.Errorf("at least one source stream is required")
 	}
@@ -339,6 +345,9 @@ func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources 
 		cfg.Storage = jetstream.MemoryStorage
 	}
 
+	if maxConsumers != nil {
+		cfg.MaxConsumers = *maxConsumers
+	}
 	if maxMsgs != nil {
 		cfg.MaxMsgs = int64(*maxMsgs)
 	}

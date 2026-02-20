@@ -100,10 +100,10 @@ type ComplexityRoot struct {
 		KvUpdate         func(childComplexity int, bucket string, history *int, ttl *int) int
 		Publish          func(childComplexity int, subject string, data string) int
 		PublishScheduled func(childComplexity int, subject string, data string, delay int) int
-		StreamCopy       func(childComplexity int, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
-		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
+		StreamCopy       func(childComplexity int, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
+		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 		StreamDelete     func(childComplexity int, name string) int
-		StreamUpdate     func(childComplexity int, name string, subjects []string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
+		StreamUpdate     func(childComplexity int, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 	}
 
 	PublishResult struct {
@@ -164,10 +164,10 @@ type MutationResolver interface {
 	KvPurge(ctx context.Context, bucket string, key string) (bool, error)
 	KvDeleteBucket(ctx context.Context, bucket string) (bool, error)
 	KvUpdate(ctx context.Context, bucket string, history *int, ttl *int) (*model.KeyValue, error)
-	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
+	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	StreamDelete(ctx context.Context, name string) (bool, error)
-	StreamUpdate(ctx context.Context, name string, subjects []string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
-	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
+	StreamUpdate(ctx context.Context, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
+	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
 	PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error)
 	ConsumerCreate(ctx context.Context, stream string, name string, filterSubject *string, filterSubjects []string, deliverPolicy *string, ackPolicy *string, ackWait *int, maxDeliver *int, maxAckPending *int, replicas *int, description *string) (*model.ConsumerInfo, error)
@@ -532,7 +532,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StreamCopy(childComplexity, args["name"].(string), args["sources"].([]*model.StreamSourceInput), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
+		return e.complexity.Mutation.StreamCopy(childComplexity, args["name"].(string), args["sources"].([]*model.StreamSourceInput), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxConsumers"].(*int), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
 	case "Mutation.streamCreate":
 		if e.complexity.Mutation.StreamCreate == nil {
 			break
@@ -543,7 +543,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StreamCreate(childComplexity, args["name"].(string), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
+		return e.complexity.Mutation.StreamCreate(childComplexity, args["name"].(string), args["subjects"].([]string), args["retention"].(*string), args["storage"].(*string), args["maxConsumers"].(*int), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
 	case "Mutation.streamDelete":
 		if e.complexity.Mutation.StreamDelete == nil {
 			break
@@ -565,7 +565,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StreamUpdate(childComplexity, args["name"].(string), args["subjects"].([]string), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
+		return e.complexity.Mutation.StreamUpdate(childComplexity, args["name"].(string), args["subjects"].([]string), args["maxConsumers"].(*int), args["maxMsgs"].(*int), args["maxBytes"].(*int), args["maxAge"].(*int), args["replicas"].(*int)), true
 
 	case "PublishResult.sequence":
 		if e.complexity.PublishResult.Sequence == nil {
@@ -1227,26 +1227,31 @@ func (ec *executionContext) field_Mutation_streamCopy_args(ctx context.Context, 
 		return nil, err
 	}
 	args["storage"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxConsumers", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxMsgs"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
+	args["maxConsumers"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxBytes"] = arg6
-	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
+	args["maxMsgs"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxAge"] = arg7
-	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	args["maxBytes"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["replicas"] = arg8
+	args["maxAge"] = arg8
+	arg9, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg9
 	return args, nil
 }
 
@@ -1273,26 +1278,31 @@ func (ec *executionContext) field_Mutation_streamCreate_args(ctx context.Context
 		return nil, err
 	}
 	args["storage"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "maxConsumers", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxMsgs"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
+	args["maxConsumers"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxBytes"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
+	args["maxMsgs"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxAge"] = arg6
-	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	args["maxBytes"] = arg6
+	arg7, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["replicas"] = arg7
+	args["maxAge"] = arg7
+	arg8, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg8
 	return args, nil
 }
 
@@ -1320,26 +1330,31 @@ func (ec *executionContext) field_Mutation_streamUpdate_args(ctx context.Context
 		return nil, err
 	}
 	args["subjects"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "maxConsumers", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxMsgs"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
+	args["maxConsumers"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "maxMsgs", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxBytes"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
+	args["maxMsgs"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "maxBytes", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["maxAge"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	args["maxBytes"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxAge", ec.unmarshalOInt2ᚖint)
 	if err != nil {
 		return nil, err
 	}
-	args["replicas"] = arg5
+	args["maxAge"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "replicas", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["replicas"] = arg6
 	return args, nil
 }
 
@@ -2678,7 +2693,7 @@ func (ec *executionContext) _Mutation_streamCreate(ctx context.Context, field gr
 		ec.fieldContext_Mutation_streamCreate,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StreamCreate(ctx, fc.Args["name"].(string), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
+			return ec.resolvers.Mutation().StreamCreate(ctx, fc.Args["name"].(string), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxConsumers"].(*int), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
 		},
 		nil,
 		ec.marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo,
@@ -2790,7 +2805,7 @@ func (ec *executionContext) _Mutation_streamUpdate(ctx context.Context, field gr
 		ec.fieldContext_Mutation_streamUpdate,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StreamUpdate(ctx, fc.Args["name"].(string), fc.Args["subjects"].([]string), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
+			return ec.resolvers.Mutation().StreamUpdate(ctx, fc.Args["name"].(string), fc.Args["subjects"].([]string), fc.Args["maxConsumers"].(*int), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
 		},
 		nil,
 		ec.marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo,
@@ -2861,7 +2876,7 @@ func (ec *executionContext) _Mutation_streamCopy(ctx context.Context, field grap
 		ec.fieldContext_Mutation_streamCopy,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StreamCopy(ctx, fc.Args["name"].(string), fc.Args["sources"].([]*model.StreamSourceInput), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
+			return ec.resolvers.Mutation().StreamCopy(ctx, fc.Args["name"].(string), fc.Args["sources"].([]*model.StreamSourceInput), fc.Args["subjects"].([]string), fc.Args["retention"].(*string), fc.Args["storage"].(*string), fc.Args["maxConsumers"].(*int), fc.Args["maxMsgs"].(*int), fc.Args["maxBytes"].(*int), fc.Args["maxAge"].(*int), fc.Args["replicas"].(*int))
 		},
 		nil,
 		ec.marshalNStreamInfo2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐStreamInfo,
