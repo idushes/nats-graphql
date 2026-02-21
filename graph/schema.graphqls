@@ -294,6 +294,9 @@ type Mutation {
   "Delete a stream. Returns true if successful"
   streamDelete(name: String!): Boolean!
 
+  "Purge all messages from a stream (stream itself is preserved). Returns true if successful"
+  streamPurge(name: String!): Boolean!
+
   """
   Update an existing stream configuration. Returns the updated stream info.
   Only the provided fields will be changed; omitted fields retain their current values.

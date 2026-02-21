@@ -805,6 +805,77 @@ func testPublishErrors() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// STREAM PURGE TESTS
+// ══════════════════════════════════════════════════════════════════
+
+func testStreamPurge() {
+	fmt.Println("\n── streamPurge ──")
+
+	// Publish some messages first
+	for i := 1; i <= 3; i++ {
+		q := fmt.Sprintf(`mutation { publish(subject: "%s.purge.%d", data: "purge-msg-%d") { sequence } }`, testStream, i, i)
+		_, err := query(q)
+		if err != nil {
+			assert(fmt.Sprintf("publish msg %d for purge test", i), false, fmt.Sprint(err))
+			return
+		}
+	}
+	assert("published 3 messages for purge test", true, "")
+
+	// Verify messages exist
+	q := `{ streams { name messages } }`
+	data, err := query(q)
+	assert("query streams before purge", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+
+	type streamInfo struct {
+		Name     string `json:"name"`
+		Messages int    `json:"messages"`
+	}
+	var result struct {
+		Streams []streamInfo `json:"streams"`
+	}
+	json.Unmarshal(data, &result)
+
+	var msgsBefore int
+	for _, s := range result.Streams {
+		if s.Name == testStream {
+			msgsBefore = s.Messages
+		}
+	}
+	assert("messages > 0 before purge", msgsBefore > 0, fmt.Sprintf("got: %d", msgsBefore))
+
+	// Purge the stream
+	q = fmt.Sprintf(`mutation { streamPurge(name: "%s") }`, testStream)
+	data, err = query(q)
+	assert("purge stream", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+	val := unmarshal[bool](data, "streamPurge")
+	assert("returns true", val, "got false")
+
+	// Verify messages are gone
+	q = `{ streams { name messages } }`
+	data, err = query(q)
+	assert("query streams after purge", err == nil, fmt.Sprint(err))
+	if err != nil {
+		return
+	}
+	json.Unmarshal(data, &result)
+
+	for _, s := range result.Streams {
+		if s.Name == testStream {
+			assert("messages == 0 after purge", s.Messages == 0, fmt.Sprintf("got: %d", s.Messages))
+			return
+		}
+	}
+	assert("test stream still exists after purge", false, "stream not found")
+}
+
+// ══════════════════════════════════════════════════════════════════
 // STREAM MESSAGES TESTS
 // ══════════════════════════════════════════════════════════════════
 
@@ -1412,6 +1483,9 @@ func main() {
 	testPublish()
 	testPublishErrors()
 	testStreamMessages()
+
+	// ── Stream Purge ──
+	testStreamPurge()
 	testStreamMessagesEdgeCases()
 	testStreamMessagesFilters()
 	testStreamMessagesFilterErrors()

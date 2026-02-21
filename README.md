@@ -21,6 +21,7 @@ GraphQL server for NATS JetStream administration. Provides an API to inspect and
 - `streamCreate` — create a new stream (subjects, retention, storage, maxMsgs, maxBytes, replicas)
 - `streamCopy` — create a stream that aggregates messages from multiple source streams
 - `streamDelete` — delete a stream
+- `streamPurge` — remove all messages from a stream (preserves the stream)
 - `streamMessages` — read messages with flexible filtering:
   - `startSeq` — start from sequence number
   - `startTime` / `endTime` — time range (RFC3339)

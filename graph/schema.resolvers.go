@@ -245,6 +245,18 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 	return true, nil
 }
 
+// StreamPurge is the resolver for the streamPurge field.
+func (r *mutationResolver) StreamPurge(ctx context.Context, name string) (bool, error) {
+	s, err := r.JS.Stream(ctx, name)
+	if err != nil {
+		return false, err
+	}
+	if err := s.Purge(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // StreamUpdate is the resolver for the streamUpdate field.
 func (r *mutationResolver) StreamUpdate(ctx context.Context, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error) {
 	s, err := r.JS.Stream(ctx, name)

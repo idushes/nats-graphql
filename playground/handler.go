@@ -104,6 +104,14 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Purge all messages from a stream (mutation)
+# Stream itself is preserved, only messages are removed
+#
+# mutation {
+#   streamPurge(name: "my-stream")
+# }
+
+# -----------------------------------------------
 # Update stream settings (mutation)
 # Only provided fields will be changed
 #
