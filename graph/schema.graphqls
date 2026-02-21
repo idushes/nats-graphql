@@ -294,8 +294,8 @@ type Mutation {
   "Delete a stream. Returns true if successful"
   streamDelete(name: String!): Boolean!
 
-  "Purge all messages from a stream (stream itself is preserved). Returns true if successful"
-  streamPurge(name: String!): Boolean!
+  "Purge messages from a stream (stream itself is preserved). Optionally filter by subject to purge only matching messages. Returns true if successful"
+  streamPurge(name: String!, subject: String): Boolean!
 
   """
   Update an existing stream configuration. Returns the updated stream info.

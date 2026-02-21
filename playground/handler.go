@@ -112,6 +112,13 @@ const exampleQuery = `# List all Key-Value stores
 # }
 
 # -----------------------------------------------
+# Purge only messages matching a subject (mutation)
+#
+# mutation {
+#   streamPurge(name: "my-stream", subject: "orders.error")
+# }
+
+# -----------------------------------------------
 # Update stream settings (mutation)
 # Only provided fields will be changed
 #

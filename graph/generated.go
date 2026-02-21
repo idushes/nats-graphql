@@ -103,7 +103,7 @@ type ComplexityRoot struct {
 		StreamCopy       func(childComplexity int, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 		StreamDelete     func(childComplexity int, name string) int
-		StreamPurge      func(childComplexity int, name string) int
+		StreamPurge      func(childComplexity int, name string, subject *string) int
 		StreamUpdate     func(childComplexity int, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 	}
 
@@ -167,7 +167,7 @@ type MutationResolver interface {
 	KvUpdate(ctx context.Context, bucket string, history *int, ttl *int) (*model.KeyValue, error)
 	StreamCreate(ctx context.Context, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	StreamDelete(ctx context.Context, name string) (bool, error)
-	StreamPurge(ctx context.Context, name string) (bool, error)
+	StreamPurge(ctx context.Context, name string, subject *string) (bool, error)
 	StreamUpdate(ctx context.Context, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
@@ -567,7 +567,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StreamPurge(childComplexity, args["name"].(string)), true
+		return e.complexity.Mutation.StreamPurge(childComplexity, args["name"].(string), args["subject"].(*string)), true
 	case "Mutation.streamUpdate":
 		if e.complexity.Mutation.StreamUpdate == nil {
 			break
@@ -1338,6 +1338,11 @@ func (ec *executionContext) field_Mutation_streamPurge_args(ctx context.Context,
 		return nil, err
 	}
 	args["name"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "subject", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["subject"] = arg1
 	return args, nil
 }
 
@@ -2829,7 +2834,7 @@ func (ec *executionContext) _Mutation_streamPurge(ctx context.Context, field gra
 		ec.fieldContext_Mutation_streamPurge,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StreamPurge(ctx, fc.Args["name"].(string))
+			return ec.resolvers.Mutation().StreamPurge(ctx, fc.Args["name"].(string), fc.Args["subject"].(*string))
 		},
 		nil,
 		ec.marshalNBoolean2bool,

@@ -246,12 +246,16 @@ func (r *mutationResolver) StreamDelete(ctx context.Context, name string) (bool,
 }
 
 // StreamPurge is the resolver for the streamPurge field.
-func (r *mutationResolver) StreamPurge(ctx context.Context, name string) (bool, error) {
+func (r *mutationResolver) StreamPurge(ctx context.Context, name string, subject *string) (bool, error) {
 	s, err := r.JS.Stream(ctx, name)
 	if err != nil {
 		return false, err
 	}
-	if err := s.Purge(ctx); err != nil {
+	var opts []jetstream.StreamPurgeOpt
+	if subject != nil && *subject != "" {
+		opts = append(opts, jetstream.WithPurgeSubject(*subject))
+	}
+	if err := s.Purge(ctx, opts...); err != nil {
 		return false, err
 	}
 	return true, nil
