@@ -717,12 +717,26 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 		cfg.OptStartSeq = uint64(*startSeq)
 	} else {
 		// Default: read last N messages from the end
-		// Calculate start sequence to get roughly 'last' messages
 		lastSeq := info.State.LastSeq
 		firstSeq := info.State.FirstSeq
-		calcStart := lastSeq - uint64(last) + 1
-		if calcStart < firstSeq || calcStart > lastSeq {
+		totalMsgs := info.State.Msgs
+
+		var calcStart uint64
+		if totalMsgs <= uint64(last) {
+			// All messages fit — start from the beginning to catch
+			// messages scattered across gaps (e.g. after subject purge)
 			calcStart = firstSeq
+		} else {
+			// Estimate start position based on message density
+			// to handle sparse sequences after purges
+			seqRange := lastSeq - firstSeq + 1
+			density := float64(totalMsgs) / float64(seqRange)
+			needed := uint64(float64(last) / density * 1.5) // 1.5x buffer
+			if needed >= seqRange {
+				calcStart = firstSeq
+			} else {
+				calcStart = lastSeq - needed + 1
+			}
 		}
 		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
 		cfg.OptStartSeq = calcStart
