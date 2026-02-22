@@ -721,25 +721,20 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 		firstSeq := info.State.FirstSeq
 		totalMsgs := info.State.Msgs
 
-		var calcStart uint64
-		if totalMsgs <= uint64(last) {
-			// All messages fit — start from the beginning to catch
-			// messages scattered across gaps (e.g. after subject purge)
-			calcStart = firstSeq
+		if totalMsgs <= maxMessages {
+			// Small enough to read all — start from beginning to handle
+			// sparse sequences (gaps after subject purge), then trim to last N
+			cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+			cfg.OptStartSeq = firstSeq
 		} else {
-			// Estimate start position based on message density
-			// to handle sparse sequences after purges
-			seqRange := lastSeq - firstSeq + 1
-			density := float64(totalMsgs) / float64(seqRange)
-			needed := uint64(float64(last) / density * 1.5) // 1.5x buffer
-			if needed >= seqRange {
+			// Large stream — estimate start position
+			calcStart := lastSeq - uint64(last) + 1
+			if calcStart < firstSeq || calcStart > lastSeq {
 				calcStart = firstSeq
-			} else {
-				calcStart = lastSeq - needed + 1
 			}
+			cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+			cfg.OptStartSeq = calcStart
 		}
-		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
-		cfg.OptStartSeq = calcStart
 	}
 
 	// Create ordered consumer (ephemeral, auto-cleanup)
@@ -748,11 +743,17 @@ func (r *queryResolver) StreamMessages(ctx context.Context, stream string, last 
 		return nil, fmt.Errorf("failed to create consumer: %w", err)
 	}
 
-	// Fetch messages
+	// Fetch messages — read up to maxMessages to handle sparse sequences
 	fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	msgs, err := cons.Fetch(last, jetstream.FetchMaxWait(3*time.Second))
+	fetchCount := last
+	if startSeq == nil && startTime == nil && info.State.Msgs <= maxMessages {
+		// Read all messages so we can trim to the actual last N
+		fetchCount = int(info.State.Msgs)
+	}
+
+	msgs, err := cons.Fetch(fetchCount, jetstream.FetchMaxWait(3*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
@@ -791,6 +792,11 @@ loop:
 		if msgs.Error().Error() != "nats: timeout" {
 			return nil, msgs.Error()
 		}
+	}
+
+	// Trim to last N messages (we may have fetched more to handle sparse sequences)
+	if len(result) > last {
+		result = result[len(result)-last:]
 	}
 
 	return result, nil
