@@ -156,6 +156,10 @@ const exampleQuery = `# List all Key-Value stores
 #     subject
 #     data
 #     published
+#     headers {
+#       key
+#       values
+#     }
 #   }
 # }
 
@@ -175,6 +179,10 @@ const exampleQuery = `# List all Key-Value stores
 #     subject
 #     data
 #     published
+#     headers {
+#       key
+#       values
+#     }
 #   }
 # }
 
@@ -187,6 +195,10 @@ const exampleQuery = `# List all Key-Value stores
 #     subject
 #     data
 #     published
+#     headers {
+#       key
+#       values
+#     }
 #   }
 # }
 
@@ -195,6 +207,21 @@ const exampleQuery = `# List all Key-Value stores
 #
 # mutation {
 #   publish(subject: "orders.new", data: "{\"id\": 1}") {
+#     stream
+#     sequence
+#   }
+# }
+
+# -----------------------------------------------
+# Publish a message with headers (mutation)
+# Headers is a JSON string: keys are header names, values are strings or arrays
+#
+# mutation {
+#   publish(
+#     subject: "orders.new"
+#     data: "{\"id\": 1}"
+#     headers: "{\"Content-Type\": \"application/json\", \"X-Trace-Id\": \"abc-123\"}"
+#   ) {
 #     stream
 #     sequence
 #   }

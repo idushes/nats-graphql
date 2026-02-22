@@ -70,6 +70,11 @@ type ComplexityRoot struct {
 		Stream         func(childComplexity int) int
 	}
 
+	HeaderEntry struct {
+		Key    func(childComplexity int) int
+		Values func(childComplexity int) int
+	}
+
 	KVEntry struct {
 		Created  func(childComplexity int) int
 		Key      func(childComplexity int) int
@@ -98,8 +103,8 @@ type ComplexityRoot struct {
 		KvPurge          func(childComplexity int, bucket string, key string) int
 		KvPut            func(childComplexity int, bucket string, key string, value string) int
 		KvUpdate         func(childComplexity int, bucket string, history *int, ttl *int) int
-		Publish          func(childComplexity int, subject string, data string) int
-		PublishScheduled func(childComplexity int, subject string, data string, delay int) int
+		Publish          func(childComplexity int, subject string, data string, headers *string) int
+		PublishScheduled func(childComplexity int, subject string, data string, delay int, headers *string) int
 		StreamCopy       func(childComplexity int, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 		StreamCreate     func(childComplexity int, name string, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) int
 		StreamDelete     func(childComplexity int, name string) int
@@ -141,6 +146,7 @@ type ComplexityRoot struct {
 
 	StreamMessage struct {
 		Data      func(childComplexity int) int
+		Headers   func(childComplexity int) int
 		Published func(childComplexity int) int
 		Sequence  func(childComplexity int) int
 		Subject   func(childComplexity int) int
@@ -170,8 +176,8 @@ type MutationResolver interface {
 	StreamPurge(ctx context.Context, name string, subject *string) (bool, error)
 	StreamUpdate(ctx context.Context, name string, subjects []string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
 	StreamCopy(ctx context.Context, name string, sources []*model.StreamSourceInput, subjects []string, retention *string, storage *string, maxConsumers *int, maxMsgs *int, maxBytes *int, maxAge *int, replicas *int) (*model.StreamInfo, error)
-	Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error)
-	PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error)
+	Publish(ctx context.Context, subject string, data string, headers *string) (*model.PublishResult, error)
+	PublishScheduled(ctx context.Context, subject string, data string, delay int, headers *string) (bool, error)
 	ConsumerCreate(ctx context.Context, stream string, name string, filterSubject *string, filterSubjects []string, deliverPolicy *string, ackPolicy *string, ackWait *int, maxDeliver *int, maxAckPending *int, replicas *int, description *string) (*model.ConsumerInfo, error)
 	ConsumerDelete(ctx context.Context, stream string, name string) (bool, error)
 	ConsumerPause(ctx context.Context, stream string, name string, pauseUntil string) (bool, error)
@@ -323,6 +329,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ConsumerInfo.Stream(childComplexity), true
+
+	case "HeaderEntry.key":
+		if e.complexity.HeaderEntry.Key == nil {
+			break
+		}
+
+		return e.complexity.HeaderEntry.Key(childComplexity), true
+	case "HeaderEntry.values":
+		if e.complexity.HeaderEntry.Values == nil {
+			break
+		}
+
+		return e.complexity.HeaderEntry.Values(childComplexity), true
 
 	case "KVEntry.created":
 		if e.complexity.KVEntry.Created == nil {
@@ -512,7 +531,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Publish(childComplexity, args["subject"].(string), args["data"].(string)), true
+		return e.complexity.Mutation.Publish(childComplexity, args["subject"].(string), args["data"].(string), args["headers"].(*string)), true
 	case "Mutation.publishScheduled":
 		if e.complexity.Mutation.PublishScheduled == nil {
 			break
@@ -523,7 +542,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.PublishScheduled(childComplexity, args["subject"].(string), args["data"].(string), args["delay"].(int)), true
+		return e.complexity.Mutation.PublishScheduled(childComplexity, args["subject"].(string), args["data"].(string), args["delay"].(int), args["headers"].(*string)), true
 	case "Mutation.streamCopy":
 		if e.complexity.Mutation.StreamCopy == nil {
 			break
@@ -752,6 +771,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.StreamMessage.Data(childComplexity), true
+	case "StreamMessage.headers":
+		if e.complexity.StreamMessage.Headers == nil {
+			break
+		}
+
+		return e.complexity.StreamMessage.Headers(childComplexity), true
 	case "StreamMessage.published":
 		if e.complexity.StreamMessage.Published == nil {
 			break
@@ -1193,6 +1218,11 @@ func (ec *executionContext) field_Mutation_publishScheduled_args(ctx context.Con
 		return nil, err
 	}
 	args["delay"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "headers", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["headers"] = arg3
 	return args, nil
 }
 
@@ -1209,6 +1239,11 @@ func (ec *executionContext) field_Mutation_publish_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["data"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "headers", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["headers"] = arg2
 	return args, nil
 }
 
@@ -2102,6 +2137,64 @@ func (ec *executionContext) fieldContext_ConsumerInfo_pauseRemaining(_ context.C
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _HeaderEntry_key(ctx context.Context, field graphql.CollectedField, obj *model.HeaderEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_HeaderEntry_key,
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_HeaderEntry_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "HeaderEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _HeaderEntry_values(ctx context.Context, field graphql.CollectedField, obj *model.HeaderEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_HeaderEntry_values,
+		func(ctx context.Context) (any, error) {
+			return obj.Values, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_HeaderEntry_values(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "HeaderEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3017,7 +3110,7 @@ func (ec *executionContext) _Mutation_publish(ctx context.Context, field graphql
 		ec.fieldContext_Mutation_publish,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().Publish(ctx, fc.Args["subject"].(string), fc.Args["data"].(string))
+			return ec.resolvers.Mutation().Publish(ctx, fc.Args["subject"].(string), fc.Args["data"].(string), fc.Args["headers"].(*string))
 		},
 		nil,
 		ec.marshalNPublishResult2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐPublishResult,
@@ -3064,7 +3157,7 @@ func (ec *executionContext) _Mutation_publishScheduled(ctx context.Context, fiel
 		ec.fieldContext_Mutation_publishScheduled,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().PublishScheduled(ctx, fc.Args["subject"].(string), fc.Args["data"].(string), fc.Args["delay"].(int))
+			return ec.resolvers.Mutation().PublishScheduled(ctx, fc.Args["subject"].(string), fc.Args["data"].(string), fc.Args["delay"].(int), fc.Args["headers"].(*string))
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -3588,6 +3681,8 @@ func (ec *executionContext) fieldContext_Query_streamMessages(ctx context.Contex
 				return ec.fieldContext_StreamMessage_data(ctx, field)
 			case "published":
 				return ec.fieldContext_StreamMessage_published(ctx, field)
+			case "headers":
+				return ec.fieldContext_StreamMessage_headers(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StreamMessage", field.Name)
 		},
@@ -4408,6 +4503,41 @@ func (ec *executionContext) fieldContext_StreamMessage_published(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _StreamMessage_headers(ctx context.Context, field graphql.CollectedField, obj *model.StreamMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_StreamMessage_headers,
+		func(ctx context.Context) (any, error) {
+			return obj.Headers, nil
+		},
+		nil,
+		ec.marshalOHeaderEntry2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐHeaderEntryᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_StreamMessage_headers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StreamMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_HeaderEntry_key(ctx, field)
+			case "values":
+				return ec.fieldContext_HeaderEntry_values(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type HeaderEntry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _StreamSourceInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.StreamSourceInfo) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4557,6 +4687,8 @@ func (ec *executionContext) fieldContext_Subscription_streamSubscribe(ctx contex
 				return ec.fieldContext_StreamMessage_data(ctx, field)
 			case "published":
 				return ec.fieldContext_StreamMessage_published(ctx, field)
+			case "headers":
+				return ec.fieldContext_StreamMessage_headers(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type StreamMessage", field.Name)
 		},
@@ -6177,6 +6309,50 @@ func (ec *executionContext) _ConsumerInfo(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var headerEntryImplementors = []string{"HeaderEntry"}
+
+func (ec *executionContext) _HeaderEntry(ctx context.Context, sel ast.SelectionSet, obj *model.HeaderEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, headerEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HeaderEntry")
+		case "key":
+			out.Values[i] = ec._HeaderEntry_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "values":
+			out.Values[i] = ec._HeaderEntry_values(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var kVEntryImplementors = []string{"KVEntry"}
 
 func (ec *executionContext) _KVEntry(ctx context.Context, sel ast.SelectionSet, obj *model.KVEntry) graphql.Marshaler {
@@ -6835,6 +7011,8 @@ func (ec *executionContext) _StreamMessage(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "headers":
+			out.Values[i] = ec._StreamMessage_headers(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7336,6 +7514,16 @@ func (ec *executionContext) marshalNConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmod
 		return graphql.Null
 	}
 	return ec._ConsumerInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNHeaderEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐHeaderEntry(ctx context.Context, sel ast.SelectionSet, v *model.HeaderEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._HeaderEntry(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
@@ -7920,6 +8108,53 @@ func (ec *executionContext) marshalOConsumerInfo2ᚖnatsᚑgraphqlᚋgraphᚋmod
 		return graphql.Null
 	}
 	return ec._ConsumerInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHeaderEntry2ᚕᚖnatsᚑgraphqlᚋgraphᚋmodelᚐHeaderEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.HeaderEntry) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNHeaderEntry2ᚖnatsᚑgraphqlᚋgraphᚋmodelᚐHeaderEntry(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

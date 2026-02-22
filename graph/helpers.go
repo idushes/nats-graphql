@@ -1,11 +1,67 @@
 package graph
 
 import (
+	"encoding/json"
+	"fmt"
 	"nats-graphql/graph/model"
+	"sort"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
+
+// parseHeaders parses a JSON string into nats.Header.
+// Accepts {"key": "value"} or {"key": ["v1", "v2"]} format.
+func parseHeaders(jsonStr string) (nats.Header, error) {
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
+		return nil, fmt.Errorf("invalid headers JSON: %w", err)
+	}
+
+	h := make(nats.Header)
+	for k, v := range raw {
+		switch val := v.(type) {
+		case string:
+			h.Set(k, val)
+		case []interface{}:
+			for _, item := range val {
+				s, ok := item.(string)
+				if !ok {
+					return nil, fmt.Errorf("header %q: array values must be strings", k)
+				}
+				h.Add(k, s)
+			}
+		default:
+			return nil, fmt.Errorf("header %q: value must be a string or array of strings", k)
+		}
+	}
+	return h, nil
+}
+
+// mapHeaders converts nats.Header to GraphQL HeaderEntry slice.
+// Returns nil if there are no headers (so the field is null in the response).
+func mapHeaders(h nats.Header) []*model.HeaderEntry {
+	if len(h) == 0 {
+		return nil
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(h))
+	for k := range h {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	result := make([]*model.HeaderEntry, 0, len(keys))
+	for _, k := range keys {
+		result = append(result, &model.HeaderEntry{
+			Key:    k,
+			Values: h.Values(k),
+		})
+	}
+	return result
+}
 
 // parseRFC3339 parses a time string in RFC3339 or RFC3339Nano format.
 func parseRFC3339(s string) (time.Time, error) {

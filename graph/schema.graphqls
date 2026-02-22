@@ -108,6 +108,18 @@ type KVEntry {
 }
 
 """
+Single header entry from a NATS message.
+A header key can have multiple values (like HTTP headers).
+"""
+type HeaderEntry {
+  "Header key name"
+  key: String!
+
+  "Header values (one key can have multiple values)"
+  values: [String!]!
+}
+
+"""
 Single message from a NATS JetStream stream.
 """
 type StreamMessage {
@@ -122,6 +134,9 @@ type StreamMessage {
 
   "Timestamp when the message was stored, in RFC3339 format"
   published: String!
+
+  "Message headers (key-value pairs). Null if no headers were set"
+  headers: [HeaderEntry!]
 }
 
 """
@@ -339,15 +354,20 @@ type Mutation {
     replicas: Int
   ): StreamInfo!
 
-  "Publish a message to a NATS subject. Max payload size: 1MB. Returns the stream and sequence of the published message"
-  publish(subject: String!, data: String!): PublishResult!
+  """
+  Publish a message to a NATS subject. Max payload size: 1MB.
+  Optionally pass headers as a JSON object, e.g. {"Content-Type": "application/json", "X-Trace-Id": "abc"}.
+  Values can be strings or arrays of strings.
+  """
+  publish(subject: String!, data: String!, headers: String): PublishResult!
 
   """
   Schedule a message for delayed publishing. Returns immediately.
   The message will be published after the specified delay (in seconds).
+  Optionally pass headers as a JSON object (same format as publish).
   Note: scheduled messages are lost if the server restarts before delivery.
   """
-  publishScheduled(subject: String!, data: String!, delay: Int!): Boolean!
+  publishScheduled(subject: String!, data: String!, delay: Int!, headers: String): Boolean!
 
   """
   Create or update a durable pull consumer on a stream.

@@ -45,6 +45,15 @@ type ConsumerInfo struct {
 	PauseRemaining *int `json:"pauseRemaining,omitempty"`
 }
 
+// Single header entry from a NATS message.
+// A header key can have multiple values (like HTTP headers).
+type HeaderEntry struct {
+	// Header key name
+	Key string `json:"key"`
+	// Header values (one key can have multiple values)
+	Values []string `json:"values"`
+}
+
 // Single key-value entry from a KV bucket.
 type KVEntry struct {
 	// Key name
@@ -133,6 +142,8 @@ type StreamMessage struct {
 	Data string `json:"data"`
 	// Timestamp when the message was stored, in RFC3339 format
 	Published string `json:"published"`
+	// Message headers (key-value pairs). Null if no headers were set
+	Headers []*HeaderEntry `json:"headers,omitempty"`
 }
 
 // Information about an upstream source stream.

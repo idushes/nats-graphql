@@ -12,6 +12,7 @@ import (
 	"nats-graphql/graph/model"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -403,13 +404,26 @@ func (r *mutationResolver) StreamCopy(ctx context.Context, name string, sources 
 }
 
 // Publish is the resolver for the publish field.
-func (r *mutationResolver) Publish(ctx context.Context, subject string, data string) (*model.PublishResult, error) {
+func (r *mutationResolver) Publish(ctx context.Context, subject string, data string, headers *string) (*model.PublishResult, error) {
 	const maxPayload = 1 << 20 // 1 MB
 	if len(data) > maxPayload {
 		return nil, fmt.Errorf("payload too large: %d bytes (max %d)", len(data), maxPayload)
 	}
 
-	ack, err := r.JS.Publish(ctx, subject, []byte(data))
+	msg := &nats.Msg{
+		Subject: subject,
+		Data:    []byte(data),
+	}
+
+	if headers != nil && *headers != "" {
+		h, err := parseHeaders(*headers)
+		if err != nil {
+			return nil, err
+		}
+		msg.Header = h
+	}
+
+	ack, err := r.JS.PublishMsg(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +435,7 @@ func (r *mutationResolver) Publish(ctx context.Context, subject string, data str
 }
 
 // PublishScheduled is the resolver for the publishScheduled field.
-func (r *mutationResolver) PublishScheduled(ctx context.Context, subject string, data string, delay int) (bool, error) {
+func (r *mutationResolver) PublishScheduled(ctx context.Context, subject string, data string, delay int, headers *string) (bool, error) {
 	const maxPayload = 1 << 20 // 1 MB
 	if len(data) > maxPayload {
 		return false, fmt.Errorf("payload too large: %d bytes (max %d)", len(data), maxPayload)
@@ -430,11 +444,26 @@ func (r *mutationResolver) PublishScheduled(ctx context.Context, subject string,
 		return false, fmt.Errorf("delay must be positive, got %d", delay)
 	}
 
+	// Parse headers before launching goroutine to return errors immediately
+	var h nats.Header
+	if headers != nil && *headers != "" {
+		var err error
+		h, err = parseHeaders(*headers)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	go func() {
 		time.Sleep(time.Duration(delay) * time.Second)
 		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, err := r.JS.Publish(bgCtx, subject, []byte(data))
+		msg := &nats.Msg{
+			Subject: subject,
+			Data:    []byte(data),
+			Header:  h,
+		}
+		_, err := r.JS.PublishMsg(bgCtx, msg)
 		if err != nil {
 			fmt.Printf("scheduled publish to %s failed: %v\n", subject, err)
 		}
@@ -784,6 +813,7 @@ loop:
 			Subject:   msg.Subject(),
 			Data:      string(msg.Data()),
 			Published: msgTime.Format(time.RFC3339Nano),
+			Headers:   mapHeaders(msg.Headers()),
 		})
 	}
 
@@ -895,6 +925,7 @@ func (r *subscriptionResolver) StreamSubscribe(ctx context.Context, stream strin
 				Subject:   msg.Subject(),
 				Data:      string(msg.Data()),
 				Published: meta.Timestamp.Format(time.RFC3339Nano),
+				Headers:   mapHeaders(msg.Headers()),
 			}
 
 			select {
